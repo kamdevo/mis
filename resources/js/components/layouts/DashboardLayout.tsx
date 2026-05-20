@@ -96,7 +96,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <AppSidebar
         isOpen={sidebarOpen}
         items={computedMenu}
-        user={user}
         onClose={() => setSidebarOpen(false)}
       />
 

@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { User } from '../../lib/auth';
-import { LogOut, User as UserIcon, Settings } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 
 interface UserMenuProps {
   user: User | null;
@@ -24,32 +24,28 @@ const UserMenu: React.FC<UserMenuProps> = ({ user, onClose, onLogout }) => {
 
   if (!user) return null;
 
+  const roleLabels: Record<string, string> = {
+    admin: 'Administrador',
+    'super-admin': 'Super Admin',
+    user: 'Usuario',
+    editor: 'Editor',
+  };
+
   return (
     <div 
       ref={menuRef}
-      className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200"
+      className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10 animate-in fade-in zoom-in-95 duration-200"
     >
-      <div className="bg-blue-50/50 p-4 border-b border-gray-100">
-        <p className="text-sm text-gray-500 mb-1">Conectado como</p>
-        <p className="font-semibold text-gray-900 truncate">{user.correo}</p>
-      </div>
-
-      <div className="p-2">
-        <button 
-          className="w-full text-left flex items-center space-x-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors"
-          onClick={() => console.log('Perfil click')} // Replace with navigation
-        >
-          <UserIcon size={18} className="text-gray-400" />
-          <span className="text-sm font-medium">Mi Perfil</span>
-        </button>
-
-        <button 
-          className="w-full text-left flex items-center space-x-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors"
-          onClick={() => console.log('Config click')} // Replace with navigation
-        >
-          <Settings size={18} className="text-gray-400" />
-          <span className="text-sm font-medium">Configuración</span>
-        </button>
+      <div className="border-b border-slate-200 bg-slate-50 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-slate-950">{user.nombre}</p>
+            <p className="mt-1 truncate text-xs text-slate-500">{user.correo}</p>
+          </div>
+          <span className="shrink-0 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 ring-1 ring-red-100">
+            {roleLabels[user.rol] || 'Usuario'}
+          </span>
+        </div>
       </div>
 
       <div className="p-2 border-t border-gray-100">
@@ -58,10 +54,10 @@ const UserMenu: React.FC<UserMenuProps> = ({ user, onClose, onLogout }) => {
             onLogout();
             onClose();
           }}
-          className="w-full text-left flex items-center space-x-3 px-3 py-2.5 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
         >
           <LogOut size={18} />
-          <span className="text-sm font-medium">Cerrar Sesión</span>
+          <span>Cerrar sesión</span>
         </button>
       </div>
     </div>

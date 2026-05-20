@@ -59,7 +59,6 @@ export const UserDashboardLayout: React.FC<UserDashboardLayoutProps> = ({ childr
       <AppSidebar
         isOpen={sidebarOpen}
         items={computedMenu}
-        user={user}
         onClose={() => setSidebarOpen(false)}
       />
 

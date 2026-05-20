@@ -1,8 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { X } from 'lucide-react';
+import { Circle, X } from 'lucide-react';
 import clsx from 'clsx';
-import { User } from '@/lib/auth';
 
 export interface SidebarMenuItem {
   id: string;
@@ -15,16 +14,8 @@ export interface SidebarMenuItem {
 interface AppSidebarProps {
   isOpen: boolean;
   items: SidebarMenuItem[];
-  user: User | null;
   onClose: () => void;
 }
-
-const roleLabels: Record<string, string> = {
-  admin: 'Administrador',
-  'super-admin': 'Super Admin',
-  user: 'Usuario',
-  editor: 'Editor',
-};
 
 const renderIcon = (icon: React.ReactElement, active?: boolean) => (
   <span
@@ -40,9 +31,7 @@ const renderIcon = (icon: React.ReactElement, active?: boolean) => (
   </span>
 );
 
-const AppSidebar: React.FC<AppSidebarProps> = ({ isOpen, items, user, onClose }) => {
-  const roleLabel = user?.rol ? roleLabels[user.rol] || 'Usuario' : 'Usuario';
-
+const AppSidebar: React.FC<AppSidebarProps> = ({ isOpen, items, onClose }) => {
   return (
     <aside
       className={clsx(
@@ -72,18 +61,6 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ isOpen, items, user, onClose })
         </button>
       </div>
 
-      <div className="border-b border-slate-200 px-4 py-4">
-        <div className="rounded-lg bg-slate-50 px-3 py-3 ring-1 ring-slate-200">
-          <p className="truncate text-sm font-semibold text-slate-900">{user?.nombre || 'Usuario'}</p>
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <p className="truncate text-xs text-slate-500">{user?.correo || 'Sesión activa'}</p>
-            <span className="shrink-0 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 ring-1 ring-red-100">
-              {roleLabel}
-            </span>
-          </div>
-        </div>
-      </div>
-
       <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Navegación principal">
         <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Navegación</p>
         <ul className="space-y-1">
@@ -108,9 +85,9 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ isOpen, items, user, onClose })
       </nav>
 
       <div className="border-t border-slate-200 px-4 py-4">
-        <div className="rounded-lg bg-slate-950 px-3 py-3 text-white">
-          <p className="text-xs font-semibold">MIS - HUV</p>
-          <p className="mt-1 text-xs leading-5 text-slate-300">Gestión documental y trazabilidad operativa.</p>
+        <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 ring-1 ring-slate-200">
+          <Circle className="h-2.5 w-2.5 fill-emerald-500 text-emerald-500" />
+          <span>Sistema activo</span>
         </div>
       </div>
     </aside>

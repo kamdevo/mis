@@ -24,68 +24,60 @@ const Header: React.FC<HeaderProps> = ({ currentSection, onMenuToggle, sidebarOp
 
   const getRoleTitle = (rol: string): string => {
     const roleTitles: { [key: string]: string } = {
-      'admin': 'Administrador del Sistema',
-      'user': 'Usuario del Sistema',
-      'editor': 'Editor del Sistema'
+      'admin': 'Administrador',
+      'super-admin': 'Super Admin',
+      'user': 'Usuario',
+      'editor': 'Editor'
     };
     return roleTitles[rol] || 'Usuario';
   };
 
   return (
-    <header className="sticky top-0 z-[60] bg-blue-800 text-white shadow-lg">
-      <div className="flex items-center justify-between px-4 lg:px-8 py-4">
+    <header className="sticky top-0 z-[60] border-b border-slate-200 bg-white/95 text-slate-950 shadow-sm backdrop-blur">
+      <div className="flex h-16 items-center justify-between px-4 lg:h-20 lg:px-8">
         <button
           onClick={onMenuToggle}
-          className="lg:hidden p-2.5 rounded-lg hover:bg-blue-700 active:bg-blue-600 transition-colors touch-manipulation"
+          className="rounded-lg p-2.5 text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 active:bg-slate-200 lg:hidden"
           aria-label={sidebarOpen ? "Cerrar menú" : "Abrir menú"}
           type="button"
         >
           {sidebarOpen ? (
-            <X className="w-7 h-7" strokeWidth={2.5} />
+            <X className="h-6 w-6" strokeWidth={2.4} />
           ) : (
-            <Menu className="w-7 h-7" strokeWidth={2.5} />
+            <Menu className="h-6 w-6" strokeWidth={2.4} />
           )}
         </button>
 
-        <div className="flex-1 lg:flex-none min-w-0 mx-4">
-          <h2 className="text-xl font-semibold truncate">{currentSection}</h2>
-          <p className="text-blue-200 text-sm">MIS - BANCO DE SANGRE</p>
+        <div className="min-w-0 flex-1 px-3 lg:px-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Panel</p>
+          <h2 className="mt-0.5 truncate text-lg font-semibold text-slate-950 lg:text-xl">{currentSection}</h2>
         </div>
 
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-3 relative">
-            <div className="hidden sm:block text-right">
-              <p className="text-sm font-medium truncate max-w-[150px]">
-                {user?.nombre || 'Usuario'}
-              </p>
-              <p className="text-xs text-blue-200">
-                {getRoleTitle(user?.rol || 'user')}
-              </p>
+        <div className="relative flex items-center gap-3">
+          <button
+            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+            className="flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pl-1 pr-2 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-red-100"
+            aria-label="Menú de usuario"
+            type="button"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-700 text-sm font-semibold text-white">
+              {user ? getInitials(user.nombre) : 'U'}
             </div>
-            
-            <div className="relative">
-              <button
-                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center space-x-2 p-1 rounded-full hover:bg-blue-700 transition-colors"
-                aria-label="Menú de usuario"
-              >
-                <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                  {user ? getInitials(user.nombre) : 'U'}
-                </div>
-                <ChevronDown 
-                  className={`w-4 h-4 text-blue-200 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`}
-                />
-              </button>
+            <span className="hidden max-w-[120px] truncate text-sm font-medium text-slate-700 sm:inline">
+              {getRoleTitle(user?.rol || 'user')}
+            </span>
+            <ChevronDown
+              className={`h-4 w-4 text-slate-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`}
+            />
+          </button>
 
-              {isUserMenuOpen && (
-                <UserMenu 
-                  user={user}
-                  onClose={() => setIsUserMenuOpen(false)}
-                  onLogout={logout}
-                />
-              )}
-            </div>
-          </div>
+          {isUserMenuOpen && (
+            <UserMenu
+              user={user}
+              onClose={() => setIsUserMenuOpen(false)}
+              onLogout={logout}
+            />
+          )}
         </div>
       </div>
     </header>
