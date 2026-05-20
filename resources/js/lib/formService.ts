@@ -6,7 +6,17 @@ interface RecordsResponse {
   records?: FormRecord[];
 }
 
+interface ApiErrorResponse {
+  message?: string;
+  errors?: Record<string, string[]>;
+}
+
 type GetRecordsResponse = FormRecord[] | RecordsResponse;
+
+const getApiErrorMessage = (data: ApiErrorResponse | undefined, fallback: string): string => {
+  const firstFieldError = data?.errors ? Object.values(data.errors).flat()[0] : null;
+  return firstFieldError || data?.message || fallback;
+};
 
 class FormsService {
   async getAllForms(): Promise<DynamicForm[]> {
@@ -25,7 +35,14 @@ class FormsService {
   }
 
   async createForm(data: CreateFormData): Promise<DynamicForm> {
-    const response = await axios.post('/api/forms', data);
+    const response = await axios.post('/api/forms', data, {
+      validateStatus: (status) => status < 500,
+    });
+
+    if (response.status >= 400) {
+      throw new Error(getApiErrorMessage(response.data, 'Error al crear el documento'));
+    }
+
     return response.data;
   }
 

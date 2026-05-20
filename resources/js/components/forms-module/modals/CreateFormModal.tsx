@@ -97,6 +97,18 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ isOpen, onClose, onSu
   }, [formData.name, autoSlug]);
 
   const validateForm = (): boolean => {
+    const reservedColumnNames = new Set([
+      'id',
+      'created_by',
+      'status',
+      'reviewer_id',
+      'reviewed_at',
+      'review_comments',
+      'created_at',
+      'updated_at',
+    ]);
+    const usedColumnNames = new Set<string>();
+
     // Validar nombre
     if (!formData.name.trim()) {
       setError('El nombre del formulario es obligatorio');
@@ -125,18 +137,36 @@ const CreateFormModal: React.FC<CreateFormModalProps> = ({ isOpen, onClose, onSu
     // Validar cada columna
     for (let i = 0; i < formData.columns.length; i++) {
       const col = formData.columns[i];
+      const columnName = col.name.trim();
       
-      if (!col.name.trim() || !col.label.trim()) {
+      if (!columnName || !col.label.trim()) {
         setError(`La columna #${i + 1} debe tener nombre y etiqueta`);
         return false;
       }
 
       // Validar formato del nombre de columna (solo snake_case)
       const columnNameRegex = /^[a-z][a-z0-9_]*$/;
-      if (!columnNameRegex.test(col.name)) {
+      if (!columnNameRegex.test(columnName)) {
         setError(`La columna #${i + 1}: El nombre debe estar en formato snake_case (solo letras minúsculas, números y _)`);
         return false;
       }
+
+      if (columnName.length > 64) {
+        setError(`La columna #${i + 1}: El nombre técnico no puede superar 64 caracteres`);
+        return false;
+      }
+
+      if (reservedColumnNames.has(columnName)) {
+        setError(`La columna #${i + 1}: "${columnName}" es un nombre reservado por el sistema`);
+        return false;
+      }
+
+      if (usedColumnNames.has(columnName)) {
+        setError(`La columna #${i + 1}: El nombre técnico "${columnName}" está repetido`);
+        return false;
+      }
+
+      usedColumnNames.add(columnName);
 
       // Validar opciones para tipo enum
       if (col.type === 'enum' && (!col.options || col.options.length === 0)) {
