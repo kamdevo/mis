@@ -97,6 +97,8 @@ const RecordTable: React.FC<RecordsTableProps> = ({ form, documentId, onRecordsC
       case 'decimal':
       case 'number':
         return typeof value === 'number' ? value.toLocaleString('es-CO') : value;
+      case 'signature':
+        return 'Firma registrada';
       default:
         return String(value);
     }
@@ -303,9 +305,21 @@ const RecordTable: React.FC<RecordsTableProps> = ({ form, documentId, onRecordsC
                   </td>
                   {form.columns_config.map(column => (
                     <td key={column.name} className="max-w-[240px] whitespace-nowrap px-5 py-4 text-sm text-slate-700">
-                      <span className={`block truncate ${column.type === 'boolean' ? (record[column.name] ? 'font-semibold text-emerald-700' : 'text-red-600') : ''}`} title={formatValue(record[column.name], column.type)}>
-                        {formatValue(record[column.name], column.type)}
-                      </span>
+                      {column.type === 'signature' ? (
+                        record[column.name] ? (
+                          <img
+                            src={record[column.name]}
+                            alt="Firma"
+                            className="h-9 w-auto max-w-[140px] rounded border border-slate-200 bg-white object-contain"
+                          />
+                        ) : (
+                          <span className="text-slate-400">Sin firma</span>
+                        )
+                      ) : (
+                        <span className={`block truncate ${column.type === 'boolean' ? (record[column.name] ? 'font-semibold text-emerald-700' : 'text-red-600') : ''}`} title={formatValue(record[column.name], column.type)}>
+                          {formatValue(record[column.name], column.type)}
+                        </span>
+                      )}
                     </td>
                   ))}
                   <td className="whitespace-nowrap px-5 py-4 text-right text-sm font-medium">

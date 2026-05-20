@@ -1,13 +1,14 @@
 import React from 'react';
-import { 
-  FileText, 
-  AlignLeft, 
-  Hash, 
-  CircleDollarSign, 
-  Calendar, 
-  Clock, 
-  CheckCircle, 
-  List 
+import {
+  FileText,
+  AlignLeft,
+  Hash,
+  CircleDollarSign,
+  Calendar,
+  Clock,
+  CheckCircle,
+  List,
+  Signature
 } from 'lucide-react';
 
 export const ColumnIcons = {
@@ -19,6 +20,7 @@ export const ColumnIcons = {
   datetime: Clock,
   boolean: CheckCircle,
   enum: List,
+  signature: Signature,
 };
 
 export const getColumnIcon = (type: string, className: string = "w-5 h-5") => {

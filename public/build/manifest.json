@@ -1,6 +1,6 @@
 {
   "resources/css/app.css": {
-    "file": "assets/app-D1PxnNYl.css",
+    "file": "assets/app-DHLQ_KL6.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "names": [
@@ -8,12 +8,12 @@
     ]
   },
   "resources/js/main.tsx": {
-    "file": "assets/main-CAhPuV3d.js",
+    "file": "assets/main-CbPFLWGv.js",
     "name": "main",
     "src": "resources/js/main.tsx",
     "isEntry": true,
     "css": [
-      "assets/app-D1PxnNYl.css"
+      "assets/app-DHLQ_KL6.css"
     ]
   }
 }

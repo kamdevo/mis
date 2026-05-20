@@ -24,6 +24,7 @@ class DynamicFormController extends Controller
             'datetime' => 'datetime',
             'boolean' => 'boolean',
             'enum' => 'string',
+            'signature' => 'longText',
             default => 'string'
         };
     }
@@ -52,7 +53,7 @@ class DynamicFormController extends Controller
             'slug' => 'required|alpha_dash|unique:dynamic_forms,slug',
             'columns' => 'required|array|min:1',
             'columns.*.name' => ['required', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_]*$/', 'distinct', Rule::notIn($reservedColumnNames)],
-            'columns.*.type' => 'required|string|in:string,text,number,decimal,date,datetime,boolean,enum',
+            'columns.*.type' => 'required|string|in:string,text,number,decimal,date,datetime,boolean,enum,signature',
             'columns.*.label' => 'required|string',
             'columns.*.required' => 'boolean',
             'columns.*.options' => 'array|required_if:columns.*.type,enum',
@@ -411,6 +412,10 @@ class DynamicFormController extends Controller
                     if (isset($column['options']) && is_array($column['options'])) {
                         $columnRules[] = Rule::in($column['options']);
                     }
+                    break;
+
+                case 'signature':
+                    $columnRules[] = 'string';
                     break;
             }
 

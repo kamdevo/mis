@@ -5,7 +5,7 @@
  */
 export interface FormColumn {
   name: string;
-  type: 'string' | 'number' | 'decimal' | 'date' | 'datetime' | 'boolean' | 'enum' | 'text';
+  type: 'string' | 'number' | 'decimal' | 'date' | 'datetime' | 'boolean' | 'enum' | 'text' | 'signature';
   label: string;
   required: boolean;
   options?: string[];      // Para tipo enum
@@ -138,10 +138,15 @@ export const COLUMN_TYPES = [
     label: 'Sí/No',
     description: 'Valor verdadero o falso'
   },
-  { 
-    value: 'enum' as const, 
+  {
+    value: 'enum' as const,
     label: 'Lista de Opciones',
     description: 'Selección de opciones predefinidas'
+  },
+  {
+    value: 'signature' as const,
+    label: 'Firma',
+    description: 'Espacio para firmar dibujando con el mouse o el dedo'
   }
 ] as const;
 

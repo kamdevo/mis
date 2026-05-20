@@ -5,6 +5,7 @@ import { AlertCircle, CheckCircle, Clock, FileText, Loader2, MessageSquare, Rota
 import { DynamicForm, FormColumn, COLUMN_TYPES } from './types/types';
 import { formsService } from '@/lib/formService';
 import { getColumnIcon } from '@/components/ui/ColumnIcons';
+import SignaturePad from '@/components/ui/SignaturePad';
 import { useToast } from '@/providers/ToastContext';
 import { getNotificationCopy, NotificationKey } from '@/constants/notifications';
 import { useAuth } from '@/providers/AuthContext';
@@ -265,6 +266,15 @@ const DynamicRecordForm: React.FC<DynamicRecordFormProps> = ({
               <option key={option} value={option}>{option}</option>
             ))}
           </select>
+        );
+
+      case 'signature':
+        return (
+          <SignaturePad
+            value={value}
+            onChange={(dataUrl) => handleInputChange(column.name, dataUrl)}
+            hasError={hasError}
+          />
         );
 
       case 'boolean': {
