@@ -3,7 +3,7 @@ import { useAuth } from '../../providers/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../providers/ToastContext';
 import { getNotificationCopy } from '../../constants/notifications';
-import { AlertCircle, ArrowRight, Loader2, LockKeyhole, Mail, ShieldCheck } from 'lucide-react';
+import { AlertCircle, ArrowRight, Loader2, LockKeyhole, Mail } from 'lucide-react';
 
 export function Login() {
   const [formData, setFormData] = useState({
@@ -42,6 +42,14 @@ export function Login() {
       const message = 'Ingresa tu correo y contraseña para continuar.';
       setError(message);
       toastError('Datos incompletos', { description: message });
+      return;
+    }
+
+    const validEmailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!validEmailPattern.test(correo)) {
+      const message = 'Ingresa un correo electrónico válido.';
+      setError(message);
+      toastError('Correo inválido', { description: message });
       return;
     }
 
@@ -98,11 +106,7 @@ export function Login() {
           </div>
 
           <div className="max-w-xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-white/85 backdrop-blur">
-              <ShieldCheck className="h-4 w-4" />
-              Acceso institucional seguro
-            </div>
-            <h1 className="mt-6 text-4xl font-semibold leading-tight tracking-normal text-white xl:text-5xl">
+            <h1 className="text-4xl font-semibold leading-tight tracking-normal text-white xl:text-5xl">
               Sistema MIS - HUV
             </h1>
             <p className="mt-4 max-w-lg text-base leading-7 text-white/72">

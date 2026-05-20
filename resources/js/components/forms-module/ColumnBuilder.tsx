@@ -11,6 +11,13 @@ interface ColumnBuilderProps {
 const ColumnBuilder: React.FC<ColumnBuilderProps> = ({ columns, onChange }) => {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const [optionDrafts, setOptionDrafts] = useState<Record<number, string>>({});
+
+  const parseOptions = (text: string) =>
+    text
+    .split(/[,\n]/)
+      .map(option => option.trim())
+      .filter(Boolean);
 
   const addColumn = () => {
     const newColumn: FormColumn = {
@@ -38,6 +45,15 @@ const ColumnBuilder: React.FC<ColumnBuilderProps> = ({ columns, onChange }) => {
   const removeColumn = (index: number) => {
     onChange(columns.filter((_, i) => i !== index));
     if (expandedIndex === index) setExpandedIndex(null);
+    setOptionDrafts((prev) => {
+      const next: Record<number, string> = {};
+      Object.entries(prev).forEach(([key, value]) => {
+        const draftIndex = Number(key);
+        if (draftIndex < index) next[draftIndex] = value;
+        if (draftIndex > index) next[draftIndex - 1] = value;
+      });
+      return next;
+    });
   };
 
   const moveColumn = (index: number, direction: 'up' | 'down') => {
@@ -47,6 +63,12 @@ const ColumnBuilder: React.FC<ColumnBuilderProps> = ({ columns, onChange }) => {
     const updated = [...columns];
     [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
     onChange(updated);
+    setOptionDrafts((prev) => {
+      const next = { ...prev };
+      next[index] = prev[newIndex] ?? columns[newIndex]?.options?.join(', ') ?? '';
+      next[newIndex] = prev[index] ?? columns[index]?.options?.join(', ') ?? '';
+      return next;
+    });
   };
 
   const generateFieldName = (label: string): string => {
@@ -266,10 +288,11 @@ const ColumnBuilder: React.FC<ColumnBuilderProps> = ({ columns, onChange }) => {
                         Opciones disponibles <span className="text-red-500">*</span>
                       </label>
                       <textarea
-                        value={column.options?.join(', ') || ''}
+                        value={optionDrafts[index] ?? column.options?.join(', ') ?? ''}
                         onChange={(e) => {
                           const text = e.target.value;
-                          const options = text.split(',').map(o => o.trim()).filter(o => o);
+                          const options = parseOptions(text);
+                          setOptionDrafts(prev => ({ ...prev, [index]: text }));
                           updateColumn(index, { options });
                         }}
                         placeholder="ej: A+, A-, B+, B-, AB+, AB-, O+, O-"
