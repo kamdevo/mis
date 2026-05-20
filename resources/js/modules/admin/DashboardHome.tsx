@@ -143,7 +143,7 @@ export const DashboardHome = () => {
               title="Registros Creados"
               subtitle="Últimos 30 días"
             >
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 1, height: 1 }}>
                 <LineChart data={stats.recordsPerDay}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
@@ -165,7 +165,7 @@ export const DashboardHome = () => {
               title="Registros por Documento"
               subtitle="Top 5 documentos más usados"
             >
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 1, height: 1 }}>
                 <BarChart data={stats.recordsByDocument}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />

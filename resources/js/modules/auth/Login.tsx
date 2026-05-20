@@ -18,7 +18,6 @@ export function Login() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      console.log('LOGIN CHECK - User Role:', user.rol);
       redirectByRole(user.rol);
     }
   }, [isAuthenticated, user]);

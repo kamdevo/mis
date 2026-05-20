@@ -346,8 +346,6 @@ const UsersTable: React.FC = () => {
         onSubmit={handleUpdateUser}
         onClose={closeModals}
         isLoading={actionLoading}
-        // @ts-ignore
-        user={editingUser}
       />
 
       <DeleteUserModal

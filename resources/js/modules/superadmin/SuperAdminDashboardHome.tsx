@@ -152,7 +152,7 @@ export const SuperAdminDashboardHome = () => {
               title="Distribución de Usuarios"
               subtitle="Por rol en el sistema"
             >
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 1, height: 1 }}>
                 <PieChart>
                   <Pie
                     data={stats.usersByRole}
@@ -180,7 +180,7 @@ export const SuperAdminDashboardHome = () => {
               title="Documentos Más Activos"
               subtitle="Top 5 por cantidad de registros"
             >
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 1, height: 1 }}>
                 <BarChart data={stats.mostActiveDocuments} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" />
@@ -199,7 +199,7 @@ export const SuperAdminDashboardHome = () => {
               title="Actividad de Usuarios"
               subtitle="Últimos 7 días"
             >
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 1, height: 1 }}>
                 <LineChart data={stats.userActivityPerDay}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
@@ -223,7 +223,7 @@ export const SuperAdminDashboardHome = () => {
               title="Documentos Creados"
               subtitle="Últimos 30 días"
             >
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 1, height: 1 }}>
                 <BarChart data={stats.documentCreationTrend}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
