@@ -120,9 +120,9 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
   const validateStepOne = () => {
     if (!formData.nombre.trim()) return 'El nombre del usuario es obligatorio.';
     if (!formData.correo.trim()) return 'El correo institucional es obligatorio.';
-    if (!/^\S+@\S+\.\S+$/.test(formData.correo.trim())) return 'Ingresa un correo valido.';
-    if (!formData.password) return 'La contrasena es obligatoria.';
-    if (formData.password.length < 6) return 'La contrasena debe tener al menos 6 caracteres.';
+    if (!/^\S+@\S+\.\S+$/.test(formData.correo.trim())) return 'Ingresa un correo válido.';
+    if (!formData.password) return 'La contraseña es obligatoria.';
+    if (formData.password.length < 6) return 'La contraseña debe tener al menos 6 caracteres.';
     return '';
   };
 
@@ -240,7 +240,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                       Crear usuario
                     </h2>
                     <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
-                      Registra la cuenta y define a que documentos puede acceder.
+                      Registra la cuenta y define a qué documentos puede acceder.
                     </p>
                   </div>
                 </div>
@@ -257,7 +257,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
 
               <div className="border-t border-slate-100 bg-slate-50/80 px-4 py-3 sm:px-6">
                 <div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-600">
-                  <span>Informacion</span>
+                  <span>Información</span>
                   <span>{currentStep}/2</span>
                   <span>Permisos</span>
                 </div>
@@ -300,7 +300,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                             <Users className="h-5 w-5" />
                           </span>
                           <div>
-                            <h3 className="text-base font-semibold text-slate-950">Informacion del usuario</h3>
+                            <h3 className="text-base font-semibold text-slate-950">Información del usuario</h3>
                             <p className="mt-1 text-sm leading-6 text-slate-600">Los datos marcados son necesarios para activar la cuenta.</p>
                           </div>
                         </div>
@@ -308,7 +308,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                           <div className="md:col-span-2">
                             <label className={labelClassName}>Nombre completo <span className="text-red-600">*</span></label>
-                            <input name="nombre" value={formData.nombre} onChange={handleChange} className={fieldClassName} placeholder="Ej: Juan Perez" disabled={isLoading} />
+                            <input name="nombre" value={formData.nombre} onChange={handleChange} className={fieldClassName} placeholder="Ej: Juan Pérez" disabled={isLoading} />
                           </div>
                           <div>
                             <label className={labelClassName}>Correo <span className="text-red-600">*</span></label>
@@ -318,17 +318,17 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                             </div>
                           </div>
                           <div>
-                            <label className={labelClassName}>Telefono</label>
+                            <label className={labelClassName}>Teléfono</label>
                             <div className="relative">
                               <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                               <input name="telefono" value={formData.telefono} onChange={handleChange} className={`${fieldClassName} pl-10`} placeholder="3001234567" disabled={isLoading} />
                             </div>
                           </div>
                           <div>
-                            <label className={labelClassName}>Contrasena <span className="text-red-600">*</span></label>
+                            <label className={labelClassName}>Contraseña <span className="text-red-600">*</span></label>
                             <div className="relative">
                               <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                              <input type="password" name="password" value={formData.password} onChange={handleChange} className={`${fieldClassName} pl-10`} placeholder="Minimo 6 caracteres" disabled={isLoading} />
+                              <input type="password" name="password" value={formData.password} onChange={handleChange} className={`${fieldClassName} pl-10`} placeholder="Mínimo 6 caracteres" disabled={isLoading} />
                             </div>
                           </div>
                           <div>
@@ -364,8 +364,8 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                             <Metric label="Documentos" value={stats.total} />
                             <Metric label="Acceso" value={stats.withAccess} />
-                            <Metric label="Edicion" value={stats.canEdit} />
-                            <Metric label="Revision" value={stats.canReview} accent />
+                            <Metric label="Edición" value={stats.canEdit} />
+                            <Metric label="Revisión" value={stats.canReview} accent />
                           </div>
                         </div>
 
@@ -450,7 +450,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                         disabled={isLoading}
                       >
                         <ChevronLeft className="h-4 w-4" />
-                        Atras
+                        Atrás
                       </button>
                     )}
                     <button

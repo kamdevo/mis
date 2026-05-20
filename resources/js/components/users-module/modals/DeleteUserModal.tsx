@@ -95,9 +95,9 @@ const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
                     <AlertTriangle className="h-5 w-5" />
                   </span>
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-red-700">Accion irreversible</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-red-700">Acción irreversible</p>
                     <h2 id="delete-user-title" className="mt-1 text-xl font-semibold text-slate-950">Eliminar usuario</h2>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">Esta accion retirara el acceso del usuario al sistema MIS.</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">Esta acción retirará el acceso del usuario al sistema MIS.</p>
                   </div>
                 </div>
                 <button
@@ -125,7 +125,7 @@ const DeleteUserModal: React.FC<DeleteUserModalProps> = ({
               </div>
 
               <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-                <p className="font-semibold">El usuario perdera acceso inmediatamente.</p>
+                <p className="font-semibold">El usuario perderá acceso inmediatamente.</p>
                 <p className="mt-1 leading-6">Confirma solo si ya verificaste que la cuenta no debe permanecer activa.</p>
               </div>
 
