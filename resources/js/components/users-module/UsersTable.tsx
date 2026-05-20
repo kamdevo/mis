@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { usersService, CreateUserData, UpdateUserData } from '../../lib/usersService';
-import { User, UpdateUserPermissionsData } from '../../lib/usersService';
+import { User } from '../../lib/usersService';
 import { useAuth } from '../../providers/AuthContext';
 import CreateUserModal from './modals/CreateUserModal';
 import EditUserModal from './modals/EditUserModal';
@@ -9,6 +9,20 @@ import { UserFormData } from './types/types';
 import { useToast } from '../../providers/ToastContext';
 import { getNotificationCopy, NotificationKey } from '../../constants/notifications';
 import Pagination from '../ui/Pagination';
+import {
+  AlertCircle,
+  Edit3,
+  Loader2,
+  Mail,
+  Phone,
+  Plus,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  Trash2,
+  UserCheck,
+  Users,
+} from 'lucide-react';
 
 const UsersTable: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -23,9 +37,11 @@ const UsersTable: React.FC = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const { hasRole } = useAuth();
   const { success, error: toastError } = useToast();
+  const canManage = hasRole('admin');
 
   const emitUserToast = (variant: 'success' | 'error', key: NotificationKey<'users'>) => {
     const copy = getNotificationCopy('users', key);
@@ -42,8 +58,39 @@ const UsersTable: React.FC = () => {
   const roleNames: { [key: string]: string } = {
     'admin': 'Administrador',
     'user': 'Usuario Regular',
-    'editor': 'Editor'
+    'editor': 'Editor',
+    'super-admin': 'Super administrador',
   };
+
+  const getDisplayRole = (rol: string): string => {
+    return roleNames[rol] || rol;
+  };
+
+  const filteredUsers = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return users;
+
+    return users.filter((user) => [user.nombre, user.correo, user.telefono, getDisplayRole(user.rol)]
+      .filter(Boolean)
+      .some((value) => value.toLowerCase().includes(term))
+    );
+  }, [users, searchTerm]);
+
+  const paginatedUsers = useMemo(
+    () => filteredUsers.slice((page - 1) * pageSize, page * pageSize),
+    [filteredUsers, page, pageSize]
+  );
+
+  const userStats = useMemo(() => ({
+    total: users.length,
+    admins: users.filter(user => user.rol === 'admin' || user.rol === 'super-admin').length,
+    editors: users.filter(user => user.rol === 'editor').length,
+    regular: users.filter(user => user.rol === 'user').length,
+  }), [users]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, pageSize]);
 
   useEffect(() => {
     loadUsers();
@@ -72,8 +119,11 @@ const UsersTable: React.FC = () => {
       closeModals();
       emitUserToast('success', 'createSuccess');
     } catch (err: any) {
-      const copy = emitUserToast('error', 'createError');
-      throw new Error(copy.title);
+      const copy = getNotificationCopy('users', 'createError');
+      const message = err?.message || copy.description || copy.title;
+      setError(message);
+      toastError(copy.title, { description: message });
+      throw new Error(message);
     } finally {
       setActionLoading(false);
     }
@@ -91,14 +141,16 @@ const UsersTable: React.FC = () => {
         delete updateData.password;
       }
 
-      // @ts-ignore - document_permissions might not be in UserFormData but handled in backend or separate call if implemented
       const updatedUser = await usersService.updateUser(editingUser.id, updateData);
       setUsers(prev => prev.map(user => user.id === editingUser.id ? updatedUser : user));
       closeModals();
       emitUserToast('success', 'updateSuccess');
     } catch (err: any) {
-      const copy = emitUserToast('error', 'updateError');
-      throw new Error(copy.title);
+      const copy = getNotificationCopy('users', 'updateError');
+      const message = err?.message || copy.description || copy.title;
+      setError(message);
+      toastError(copy.title, { description: message });
+      throw new Error(message);
     } finally {
       setActionLoading(false);
     }
@@ -165,15 +217,18 @@ const UsersTable: React.FC = () => {
     return initials.slice(0, 2) || '?';
   };
 
-  const getDisplayRole = (rol: string): string => {
-    return roleNames[rol] || rol;
+  const getRoleClassName = (rol: string): string => {
+    if (rol === 'admin' || rol === 'super-admin') return 'bg-red-50 text-red-700 border-red-200';
+    if (rol === 'editor') return 'bg-[#1e2b66]/10 text-[#1e2b66] border-[#1e2b66]/20';
+    return 'bg-slate-100 text-slate-700 border-slate-200';
   };
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+      <div className="rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="flex h-64 flex-col items-center justify-center gap-3 text-slate-600">
+          <Loader2 className="h-10 w-10 animate-spin text-[#1e2b66]" />
+          <p className="text-sm font-medium">Cargando usuarios...</p>
         </div>
       </div>
     );
@@ -181,138 +236,209 @@ const UsersTable: React.FC = () => {
 
   return (
     <>
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-        <div className="bg-blue-800 px-6 py-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-white">Gestión de Usuarios</h2>
-              <p className="text-blue-200 text-sm mt-1">Sistema MIS - Banco de Sangre</p>
+      <div className="space-y-6">
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200">
+            <div className="h-1 w-full bg-[#1e2b66]" />
+            <div className="flex flex-col gap-5 px-5 py-5 lg:flex-row lg:items-start lg:justify-between lg:px-6">
+              <div className="max-w-3xl">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#1e2b66]">Usuarios</p>
+                <h1 className="mt-2 text-2xl font-semibold tracking-normal text-slate-950 lg:text-3xl">
+                  Gestión de usuarios
+                </h1>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Administra accesos, roles y permisos documentales del equipo del Banco de Sangre.
+                </p>
+              </div>
+
+              {canManage && (
+                <button
+                  type="button"
+                  onClick={openCreateModal}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1e2b66] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#172252] focus:outline-none focus:ring-4 focus:ring-[#1e2b66]/20"
+                >
+                  <Plus className="h-4 w-4" />
+                  Nuevo usuario
+                </button>
+              )}
             </div>
-            {hasRole('admin') && (
-              <button
-                onClick={openCreateModal}
-                className="mt-3 sm:mt-0 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center space-x-2"
-              >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                </svg>
-                <span>Nuevo Usuario</span>
-              </button>
-            )}
           </div>
-        </div>
+
+          <div className="grid grid-cols-1 border-b border-slate-200 sm:grid-cols-4">
+            <div className="border-b border-slate-200 px-5 py-4 sm:border-b-0 sm:border-r lg:px-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">Total</p>
+                  <p className="mt-1 text-2xl font-semibold text-slate-950">{userStats.total}</p>
+                </div>
+                <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#1e2b66]/10 text-[#1e2b66]">
+                  <Users className="h-5 w-5" />
+                </span>
+              </div>
+            </div>
+
+            <div className="border-b border-slate-200 px-5 py-4 sm:border-b-0 sm:border-r lg:px-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">Administradores</p>
+                  <p className="mt-1 text-2xl font-semibold text-slate-950">{userStats.admins}</p>
+                </div>
+                <span className="grid h-10 w-10 place-items-center rounded-lg bg-red-50 text-red-700">
+                  <ShieldCheck className="h-5 w-5" />
+                </span>
+              </div>
+            </div>
+
+            <div className="border-b border-slate-200 px-5 py-4 sm:border-b-0 sm:border-r lg:px-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">Editores</p>
+                  <p className="mt-1 text-2xl font-semibold text-slate-950">{userStats.editors}</p>
+                </div>
+                <span className="grid h-10 w-10 place-items-center rounded-lg bg-slate-100 text-slate-700">
+                  <Edit3 className="h-5 w-5" />
+                </span>
+              </div>
+            </div>
+
+            <div className="px-5 py-4 lg:px-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">Usuarios</p>
+                  <p className="mt-1 text-2xl font-semibold text-slate-950">{userStats.regular}</p>
+                </div>
+                <span className="grid h-10 w-10 place-items-center rounded-lg bg-slate-100 text-slate-700">
+                  <UserCheck className="h-5 w-5" />
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 px-5 py-4 lg:flex-row lg:items-center lg:justify-between lg:px-6">
+            <div className="relative w-full lg:max-w-md">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Buscar por nombre, correo, teléfono o rol"
+                className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-[#1e2b66] focus:ring-4 focus:ring-[#1e2b66]/10"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={loadUsers}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-[#1e2b66]/10"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Actualizar
+            </button>
+          </div>
+        </section>
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 m-4 rounded">
-            {error}
+          <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-6 bg-gray-50 border-b">
-          <div className="bg-white p-4 rounded-lg border">
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                </svg>
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          {filteredUsers.length === 0 ? (
+            <div className="px-6 py-16 text-center">
+              <div className="mx-auto grid h-14 w-14 place-items-center rounded-lg bg-[#1e2b66]/10 text-[#1e2b66]">
+                <Users className="h-7 w-7" />
               </div>
-              <div className="ml-3">
-                <p className="text-sm text-gray-600">Total Usuarios</p>
-                <p className="text-2xl font-bold text-gray-900">{users.length}</p>
-              </div>
+              <h3 className="mt-4 text-lg font-semibold text-slate-950">
+                {users.length === 0 ? 'No hay usuarios registrados' : 'No encontramos usuarios'}
+              </h3>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
+                {users.length === 0
+                  ? 'Crea el primer usuario para asignarle acceso al sistema MIS.'
+                  : 'Ajusta la búsqueda o actualiza la lista para revisar los usuarios disponibles.'}
+              </p>
+              {canManage && users.length === 0 && (
+                <button
+                  type="button"
+                  onClick={openCreateModal}
+                  className="mx-auto mt-6 inline-flex items-center gap-2 rounded-lg bg-[#1e2b66] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#172252]"
+                >
+                  <Plus className="h-4 w-4" />
+                  Nuevo usuario
+                </button>
+              )}
             </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-lg border">
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-gray-600">Administradores</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {users.filter(u => u.rol === 'admin').length}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-lg border">
-            <div className="flex items-center">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <svg className="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.18 5 4.05 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-gray-600">Usuarios</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {users.filter(u => u.rol === 'user').length}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b-2 border-gray-200">
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[920px]">
+                <thead className="border-b border-slate-200 bg-slate-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usuario</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rol</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                {hasRole('admin') && (
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Usuario</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Rol</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Contacto</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Estado</th>
+                {canManage && (
+                  <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Acciones</th>
                 )}
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {users.slice((page - 1) * pageSize, page * pageSize).map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50 transition-colors duration-150">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium text-sm">
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {paginatedUsers.map((user) => (
+                <tr key={user.id} className="transition-colors hover:bg-slate-50/80">
+                  <td className="px-5 py-4">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#1e2b66] text-sm font-semibold text-white shadow-sm">
                         {getInitials(user.nombre)}
                       </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{user.nombre}</div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-950">{user.nombre}</p>
+                        <p className="mt-1 truncate text-xs text-slate-500">ID: {user.id}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {getDisplayRole(user.rol)}
+                  <td className="px-5 py-4">
+                    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${getRoleClassName(user.rol)}`}>
+                      {getDisplayRole(user.rol)}
+                    </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.telefono}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full border bg-green-100 text-green-800 border-green-200">
+                  <td className="px-5 py-4">
+                    <div className="space-y-1 text-sm text-slate-600">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-slate-400" />
+                        <span className="truncate">{user.correo}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-slate-400" />
+                        <span>{user.telefono || 'Sin teléfono'}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
                       Activo
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.correo}</td>
-                  {hasRole('admin') && (
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-2">
+                  {canManage && (
+                    <td className="px-5 py-4 text-right text-sm font-medium">
+                      <div className="flex items-center justify-end gap-1.5">
                         <button
+                          type="button"
                           onClick={() => openEditModal(user)}
-                          className="text-blue-600 hover:text-blue-900 p-1 rounded transition-colors"
+                          className="rounded-lg p-2 text-slate-500 transition hover:bg-[#1e2b66]/10 hover:text-[#1e2b66] focus:outline-none focus:ring-4 focus:ring-[#1e2b66]/10"
                           title="Editar usuario"
+                          aria-label={`Editar ${user.nombre}`}
                         >
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
-                          </svg>
+                          <Edit3 className="h-5 w-5" />
                         </button>
                         <button
+                          type="button"
                           onClick={() => openDeleteModal(user)}
-                          className="text-red-600 hover:text-red-900 p-1 rounded transition-colors"
+                          className="rounded-lg p-2 text-slate-500 transition hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-4 focus:ring-red-100"
                           title="Eliminar usuario"
+                          aria-label={`Eliminar ${user.nombre}`}
                         >
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
-                          </svg>
+                          <Trash2 className="h-5 w-5" />
                         </button>
                       </div>
                     </td>
@@ -321,12 +447,15 @@ const UsersTable: React.FC = () => {
               ))}
             </tbody>
           </table>
-        </div>
-        {users.length > pageSize && (
+            </div>
+          )}
+        </section>
+
+        {filteredUsers.length > pageSize && (
           <Pagination
             page={page}
             pageSize={pageSize}
-            total={users.length}
+            total={filteredUsers.length}
             onPageChange={(p) => setPage(p)}
             onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
           />

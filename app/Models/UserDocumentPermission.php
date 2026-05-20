@@ -15,13 +15,15 @@ class UserDocumentPermission extends Model
         'document_id',
         'can_view',
         'can_edit',
-        'can_delete'
+        'can_delete',
+        'can_review',
     ];
 
     protected $casts = [
         'can_view' => 'boolean',
         'can_edit' => 'boolean',
         'can_delete' => 'boolean',
+        'can_review' => 'boolean',
     ];
 
     public function user()
