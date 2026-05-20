@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import Header from '../shared/Header';
 import { useLocation } from 'react-router-dom';
 import { Home, FileText, CheckSquare } from 'lucide-react';
-import { useAuth } from '@/providers/AuthContext';
-import AppSidebar, { SidebarMenuItem } from '../shared/AppSidebar';
+import FloatingNavigationIsland, { FloatingNavigationItem } from '../ui/FloatingNavigationIsland';
 
 interface UserDashboardLayoutProps {
   children: React.ReactNode;
@@ -31,8 +30,6 @@ const menuItems = [
 ];
 
 export const UserDashboardLayout: React.FC<UserDashboardLayoutProps> = ({ children }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user } = useAuth();
   const location = useLocation();
   const pathname = location.pathname;
 
@@ -44,34 +41,17 @@ export const UserDashboardLayout: React.FC<UserDashboardLayoutProps> = ({ childr
   };
 
   const currentSection = menuItems.find(item => isActive(item.href))?.name || 'Inicio';
-  const computedMenu: SidebarMenuItem[] = menuItems.map((item) => ({ ...item, active: isActive(item.href) }));
+  const computedMenu: FloatingNavigationItem[] = menuItems.map((item) => ({ ...item, active: isActive(item.href) }));
 
   return (
-    <div className="min-h-screen bg-slate-50 lg:pl-72">
-      {/* Mobile Overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      <AppSidebar
-        isOpen={sidebarOpen}
-        items={computedMenu}
-        onClose={() => setSidebarOpen(false)}
-      />
-
-      {/* Main Content */}
+    <div className="min-h-screen bg-slate-50">
       <div className="flex min-h-screen flex-col">
-        <Header
-          currentSection={currentSection}
-          onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
-        />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
+        <Header currentSection={currentSection} />
+        <main className="flex-1 overflow-y-auto p-4 pb-32 lg:p-8 lg:pb-36">
             {children}
         </main>
       </div>
+      <FloatingNavigationIsland items={computedMenu} currentSection={currentSection} />
     </div>
   );
 };
