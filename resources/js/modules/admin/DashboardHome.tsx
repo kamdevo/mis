@@ -98,7 +98,7 @@ export const DashboardHome = () => {
           {/* Welcome Section */}
           <div className="bg-gradient-to-r from-indigo-600 to-purple-700 rounded-xl shadow-lg p-8 text-white">
             <h1 className="text-3xl font-bold mb-2">
-              Panel de Administración 🎯
+              Panel de Administración
             </h1>
             <p className="text-indigo-100">
               Vista general del sistema y estadísticas de actividad

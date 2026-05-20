@@ -22,16 +22,6 @@ const Header: React.FC<HeaderProps> = ({ currentSection, onMenuToggle, sidebarOp
       .slice(0, 2);
   };
 
-  const getRoleTitle = (rol: string): string => {
-    const roleTitles: { [key: string]: string } = {
-      'admin': 'Administrador',
-      'super-admin': 'Super Admin',
-      'user': 'Usuario',
-      'editor': 'Editor'
-    };
-    return roleTitles[rol] || 'Usuario';
-  };
-
   return (
     <header className="sticky top-0 z-[60] border-b border-slate-200 bg-white/95 text-slate-950 shadow-sm backdrop-blur">
       <div className="flex h-16 items-center justify-between px-4 lg:h-20 lg:px-8">
@@ -49,8 +39,7 @@ const Header: React.FC<HeaderProps> = ({ currentSection, onMenuToggle, sidebarOp
         </button>
 
         <div className="min-w-0 flex-1 px-3 lg:px-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Panel</p>
-          <h2 className="mt-0.5 truncate text-lg font-semibold text-slate-950 lg:text-xl">{currentSection}</h2>
+          <h2 className="truncate text-lg font-semibold text-slate-950 lg:text-xl">{currentSection}</h2>
         </div>
 
         <div className="relative flex items-center gap-3">
@@ -63,9 +52,7 @@ const Header: React.FC<HeaderProps> = ({ currentSection, onMenuToggle, sidebarOp
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-700 text-sm font-semibold text-white">
               {user ? getInitials(user.nombre) : 'U'}
             </div>
-            <span className="hidden max-w-[120px] truncate text-sm font-medium text-slate-700 sm:inline">
-              {getRoleTitle(user?.rol || 'user')}
-            </span>
+            <span className="hidden text-sm font-medium text-slate-700 sm:inline">Cuenta</span>
             <ChevronDown
               className={`h-4 w-4 text-slate-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`}
             />
