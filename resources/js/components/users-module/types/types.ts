@@ -1,7 +1,7 @@
 import { User } from '../../../lib/usersService';
 
 export type UserStatus = 'Activo' | 'Inactivo';
-export type UserRole = 'admin' | 'user' | 'editor';
+export type UserRole = 'admin' | 'user' | 'editor' | 'super-admin';
 
 export interface UserFormData {
   nombre: string;
@@ -20,6 +20,7 @@ export interface DocumentPermission {
   can_view: boolean;
   can_edit: boolean;
   can_delete: boolean;
+  can_review?: boolean;
 }
 
 export interface CreateUserModalProps {

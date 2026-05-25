@@ -144,7 +144,21 @@ const UserRecordsTable: React.FC<UserRecordsTableProps> = ({ form, documentId })
                 </td>
                 {form.columns_config.slice(0, 3).map((column: any) => (
                   <td key={column.name} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {record[column.name] || '-'}
+                    {column.type === 'signature' ? (
+                      record[column.name] ? (
+                        <img
+                          src={record[column.name]}
+                          alt="Firma"
+                          className="h-9 w-auto max-w-[140px] rounded border border-gray-200 bg-white object-contain"
+                        />
+                      ) : (
+                        <span className="text-gray-400">Sin firma</span>
+                      )
+                    ) : (
+                      <span className="block max-w-[260px] truncate" title={String(record[column.name] ?? '')}>
+                        {record[column.name] || '-'}
+                      </span>
+                    )}
                   </td>
                 ))}
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">

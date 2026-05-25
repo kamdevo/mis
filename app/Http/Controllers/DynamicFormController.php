@@ -24,6 +24,7 @@ class DynamicFormController extends Controller
             'datetime' => 'datetime',
             'boolean' => 'boolean',
             'enum' => 'string',
+            'signature' => 'longText',
             default => 'string'
         };
     }
@@ -36,18 +37,37 @@ class DynamicFormController extends Controller
         //     return response()->json(['error' => 'No autorizado'], 403);
         // }
 
+        $reservedColumnNames = [
+            'id',
+            'created_by',
+            'status',
+            'reviewer_id',
+            'reviewed_at',
+            'review_comments',
+            'created_at',
+            'updated_at',
+        ];
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'slug' => 'required|alpha_dash|unique:dynamic_forms,slug',
             'columns' => 'required|array|min:1',
-            'columns.*.name' => 'required|string|alpha_dash',
-            'columns.*.type' => 'required|string|in:string,text,number,decimal,date,datetime,boolean,enum',
+            'columns.*.name' => ['required', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_]*$/', 'distinct', Rule::notIn($reservedColumnNames)],
+            'columns.*.type' => 'required|string|in:string,text,number,decimal,date,datetime,boolean,enum,signature',
             'columns.*.label' => 'required|string',
             'columns.*.required' => 'boolean',
             'columns.*.options' => 'array|required_if:columns.*.type,enum',
             'document_type_id' => 'nullable|exists:document_types,id',
             'is_notification_enabled' => 'boolean',
             'notification_time' => 'nullable|date_format:H:i',
+        ], [
+            'columns.*.name.required' => 'Cada campo debe tener un nombre técnico.',
+            'columns.*.name.max' => 'El nombre técnico no puede superar 64 caracteres.',
+            'columns.*.name.regex' => 'El nombre técnico debe estar en snake_case: solo minúsculas, números y guion bajo, empezando por una letra.',
+            'columns.*.name.distinct' => 'Los nombres técnicos de los campos no pueden repetirse.',
+            'columns.*.name.not_in' => 'Ese nombre técnico está reservado por el sistema. Usa otro nombre.',
+            'columns.*.type.in' => 'Uno de los campos tiene un tipo de dato no permitido.',
+            'columns.*.label.required' => 'Cada campo debe tener una etiqueta visible.',
         ]);
 
         // Generar nombre único para la tabla física
@@ -392,6 +412,10 @@ class DynamicFormController extends Controller
                     if (isset($column['options']) && is_array($column['options'])) {
                         $columnRules[] = Rule::in($column['options']);
                     }
+                    break;
+
+                case 'signature':
+                    $columnRules[] = 'string';
                     break;
             }
 

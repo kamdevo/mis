@@ -33,6 +33,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Permisos por documento
     Route::get('/forms/{formId}/permissions', [UserDocumentPermissionController::class, 'getDocumentPermissions']);
+    Route::post('/forms/{formId}/permissions', [UserDocumentPermissionController::class, 'syncDocumentPermissions']);
 
     // Rutas de formularios dinámicos
     Route::apiResource('forms', DynamicFormController::class);

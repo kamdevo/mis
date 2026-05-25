@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\DynamicForm;
 use App\Models\ActivityLog;
+use App\Enums\UserRole;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -19,9 +20,14 @@ class DashboardController extends Controller
     {
         try {
             $user = $request->user();
+            $isAdmin = $user->rol === UserRole::ADMIN || $user->rol === UserRole::SUPER_ADMIN;
 
-            // Get total documents (simplified - show all for now)
-            $availableDocuments = DynamicForm::count();
+            // Documentos accesibles: todos para admin, solo los asignados para usuarios regulares
+            $accessibleDocuments = $isAdmin
+                ? DynamicForm::all()
+                : $user->accessibleDocuments()->get();
+
+            $availableDocuments = $accessibleDocuments->count();
 
             // Get total records created by this user in the last 7 days
             $recentRecordsCount = ActivityLog::where('user_id', $user->id)
@@ -46,16 +52,18 @@ class DashboardController extends Controller
                     ];
                 });
 
-            // Get all documents (simplified)
-            $myDocuments = DynamicForm::limit(10)->get()->map(function ($doc) {
+            // Solo los documentos a los que el usuario tiene acceso
+            $myDocuments = $accessibleDocuments->map(function ($doc) use ($isAdmin) {
+                $canEdit = $isAdmin ? true : (bool) ($doc->pivot->can_edit ?? false);
+
                 return [
                     'id' => $doc->id,
                     'name' => $doc->name,
                     'description' => $doc->description,
-                    'can_create' => true, // Simplified
-                    'can_edit' => true, // Simplified
+                    'can_create' => $canEdit,
+                    'can_edit' => $canEdit,
                 ];
-            });
+            })->values();
 
             return response()->json([
                 'availableDocuments' => $availableDocuments,

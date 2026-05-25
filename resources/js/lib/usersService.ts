@@ -5,10 +5,11 @@ export interface User {
   nombre: string;
   correo: string;
   telefono: string;
-  rol: 'admin' | 'user' | 'editor';
+  rol: 'admin' | 'user' | 'editor' | 'super-admin';
   status?: 'Activo' | 'Inactivo';
   createdAt?: string;
   canAccessDocument?: (documentId: number, permission: string) => boolean;
+  document_permissions?: DocumentPermission[];
 }
 
 export interface DocumentPermission {
@@ -18,6 +19,7 @@ export interface DocumentPermission {
   can_view: boolean;
   can_edit: boolean;
   can_delete: boolean;
+  can_review?: boolean;
 }
 
 export interface CreateUserData {
@@ -25,7 +27,7 @@ export interface CreateUserData {
   correo: string;
   password: string;
   telefono: string;
-  rol: 'admin' | 'user' | 'editor';
+  rol: 'admin' | 'user' | 'editor' | 'super-admin';
   document_permissions?: DocumentPermission[];
 }
 
@@ -34,13 +36,23 @@ export interface UpdateUserData {
   correo?: string;
   password?: string;
   telefono?: string;
-  rol?: 'admin' | 'user' | 'editor';
+  rol?: 'admin' | 'user' | 'editor' | 'super-admin';
   document_permissions?: DocumentPermission[];
 }
 
 export interface UpdateUserPermissionsData {
   permissions: DocumentPermission[];
 }
+
+interface ApiErrorResponse {
+  message?: string;
+  errors?: Record<string, string[]>;
+}
+
+const getApiErrorMessage = (data: ApiErrorResponse | undefined, fallback: string) => {
+  const firstFieldError = data?.errors ? Object.values(data.errors).flat()[0] : undefined;
+  return firstFieldError || data?.message || fallback;
+};
 
 class UsersService {
   async getAllUsers(): Promise<User[]> {
@@ -54,22 +66,27 @@ class UsersService {
   }
 
   async createUser(userData: CreateUserData): Promise<User> {
-    const response = await axios.post('/api/users', userData);
-    const user = response.data;
+    const response = await axios.post<User | ApiErrorResponse>('/api/users', userData, {
+      validateStatus: (status) => status < 500,
+    });
 
-    // Permissions handling if needed separately, but usually can be done in one go if backend supports it.
-    // If backend requires separate call:
-    if (userData.document_permissions && userData.document_permissions.length > 0) {
-      await this.updateUserDocumentPermissions(user.id, {
-        permissions: userData.document_permissions
-      });
+    if (response.status >= 400) {
+      throw new Error(getApiErrorMessage(response.data as ApiErrorResponse, 'No pudimos crear el usuario.'));
     }
-    return user;
+
+    return response.data as User;
   }
 
   async updateUser(id: number, userData: UpdateUserData): Promise<User> {
-    const response = await axios.put(`/api/users/${id}`, userData);
-    return response.data;
+    const response = await axios.put<User | ApiErrorResponse>(`/api/users/${id}`, userData, {
+      validateStatus: (status) => status < 500,
+    });
+
+    if (response.status >= 400) {
+      throw new Error(getApiErrorMessage(response.data as ApiErrorResponse, 'No pudimos actualizar el usuario.'));
+    }
+
+    return response.data as User;
   }
 
   async deleteUser(id: number): Promise<void> {
@@ -82,7 +99,7 @@ class UsersService {
   }
 
   async updateUserDocumentPermissions(userId: number, permissionsData: UpdateUserPermissionsData): Promise<DocumentPermission[]> {
-    const response = await axios.put(`/api/users/${userId}/document-permissions`, permissionsData);
+    const response = await axios.post(`/api/users/${userId}/document-permissions`, permissionsData);
     return response.data.data || response.data;
   }
 

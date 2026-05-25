@@ -22,15 +22,31 @@ export interface AuthResponse {
   token_type: string;
 }
 
+interface LoginErrorResponse {
+  message?: string;
+  errors?: Record<string, string[]>;
+}
+
 class AuthService {
   async login(correo: string, password: string): Promise<AuthResponse> {
     try {
-        // Initialize CSRF protection for SPA (optional but good practice)
-        await axios.get('/sanctum/csrf-cookie').catch(() => {}); 
-        
-        const response = await axios.post('/api/login', { correo, password });
-        return response.data;
+        await axios.get('/sanctum/csrf-cookie').catch(() => {});
+
+        const response = await axios.post<AuthResponse | LoginErrorResponse>(
+          '/api/login',
+          { correo, password },
+          { validateStatus: (status) => status < 500 }
+        );
+
+        if (response.status >= 400) {
+          const data = response.data as LoginErrorResponse;
+          const firstFieldError = data.errors ? Object.values(data.errors).flat()[0] : undefined;
+          throw new Error(firstFieldError || data.message || 'No pudimos iniciar sesión.');
+        }
+
+        return response.data as AuthResponse;
     } catch (error: any) {
+        if (error instanceof Error) throw error;
         throw new Error(error.response?.data?.message || 'Error en el login');
     }
   }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/providers/AuthContext';
 import CreateFormModal from './modals/CreateFormModal';
 import ViewFormModal from './modals/ViewFormModal';
@@ -11,6 +11,21 @@ import { useToast } from '@/providers/ToastContext';
 import { getNotificationCopy, NotificationKey } from '@/constants/notifications';
 import ManageDocumentTypesModal from './modals/ManageDocumentTypesModal';
 import ManageDocumentPermissionsModal from './modals/ManageDocumentPermissionsModal';
+import {
+  AlertCircle,
+  Bell,
+  CalendarDays,
+  Columns3,
+  Eye,
+  FileText,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  Tags,
+  Trash2,
+} from 'lucide-react';
 
 const FormsTable: React.FC = () => {
   const [forms, setForms] = useState<DynamicForm[]>([]);
@@ -27,9 +42,41 @@ const FormsTable: React.FC = () => {
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [showManageTypesModal, setShowManageTypesModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const { hasRole } = useAuth();
   const { success, error: toastError } = useToast();
+  const canManage = hasRole('admin') || hasRole('super-admin');
+
+  const totalColumns = useMemo(
+    () => forms.reduce((sum, form) => sum + form.columns_config.length, 0),
+    [forms]
+  );
+
+  const notificationCount = useMemo(
+    () => forms.filter((form) => form.is_notification_enabled).length,
+    [forms]
+  );
+
+  const filteredForms = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return forms;
+
+    return forms.filter((form) => {
+      const typeName = form.type?.name || '';
+      return [form.name, form.slug, typeName]
+        .some((value) => value.toLowerCase().includes(term));
+    });
+  }, [forms, searchTerm]);
+
+  const paginatedForms = useMemo(
+    () => filteredForms.slice((page - 1) * pageSize, page * pageSize),
+    [filteredForms, page, pageSize]
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, pageSize]);
 
   const emitFormToast = (variant: 'success' | 'error', key: NotificationKey<'forms'>) => {
     const copy = getNotificationCopy('forms', key);
@@ -120,9 +167,10 @@ const FormsTable: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="flex h-64 flex-col items-center justify-center gap-3 text-slate-600">
+          <Loader2 className="h-10 w-10 animate-spin text-[#1e2b66]" />
+          <p className="text-sm font-medium">Cargando documentos...</p>
         </div>
       </div>
     );
@@ -130,220 +178,246 @@ const FormsTable: React.FC = () => {
 
   return (
     <>
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-800 to-blue-900 px-6 py-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-white">Gestión de Formularios Dinámicos</h2>
-              <p className="text-blue-200 text-sm mt-1">Sistema MIS - Banco de Sangre HUV</p>
-            </div>
-            {(hasRole('admin') || hasRole('super_admin')) && (
-              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 mt-3 sm:mt-0">
+      <div className="space-y-6">
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200">
+            <div className="h-1 w-full bg-[#1e2b66]" />
+            <div className="flex flex-col gap-5 px-5 py-5 lg:flex-row lg:items-start lg:justify-between lg:px-6">
+              <div className="max-w-3xl">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#1e2b66]">Documentos</p>
+                <h1 className="mt-2 text-2xl font-semibold tracking-normal text-slate-950 lg:text-3xl">
+                  Gestión de documentos
+                </h1>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Administra formularios dinámicos, permisos y estructuras de captura del Banco de Sangre.
+                </p>
+              </div>
+
+              {canManage && (
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <button
+                    type="button"
                     onClick={() => setShowManageTypesModal(true)}
-                    className="bg-white/10 hover:bg-white/20 text-white px-4 py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2 border border-white/20"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-[#1e2b66] hover:text-[#1e2b66] focus:outline-none focus:ring-4 focus:ring-[#1e2b66]/10"
                   >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                    </svg>
-                    <span className="font-semibold">Gestionar Tipos</span>
+                    <Tags className="h-4 w-4" />
+                    Gestionar tipos
                   </button>
 
                   <button
+                    type="button"
                     onClick={openCreateModal}
-                    className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-5 py-2.5 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1e2b66] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#172252] focus:outline-none focus:ring-4 focus:ring-[#1e2b66]/20"
                   >
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                    </svg>
-                    <span className="font-semibold">Crear Formulario</span>
+                    <Plus className="h-4 w-4" />
+                    Crear documento
                   </button>
-              </div>
-            )}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-        
+
+          <div className="grid grid-cols-1 border-b border-slate-200 sm:grid-cols-3">
+            <div className="border-b border-slate-200 px-5 py-4 sm:border-b-0 sm:border-r lg:px-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">Documentos</p>
+                  <p className="mt-1 text-2xl font-semibold text-slate-950">{forms.length}</p>
+                </div>
+                <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#1e2b66]/10 text-[#1e2b66]">
+                  <FileText className="h-5 w-5" />
+                </span>
+              </div>
+            </div>
+
+            <div className="border-b border-slate-200 px-5 py-4 sm:border-b-0 sm:border-r lg:px-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">Campos configurados</p>
+                  <p className="mt-1 text-2xl font-semibold text-slate-950">{totalColumns}</p>
+                </div>
+                <span className="grid h-10 w-10 place-items-center rounded-lg bg-slate-100 text-slate-700">
+                  <Columns3 className="h-5 w-5" />
+                </span>
+              </div>
+            </div>
+
+            <div className="px-5 py-4 lg:px-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">Recordatorios</p>
+                  <p className="mt-1 text-2xl font-semibold text-slate-950">{notificationCount}</p>
+                </div>
+                <span className="grid h-10 w-10 place-items-center rounded-lg bg-red-50 text-red-700">
+                  <Bell className="h-5 w-5" />
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 px-5 py-4 lg:flex-row lg:items-center lg:justify-between lg:px-6">
+            <div className="relative w-full lg:max-w-md">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Buscar por nombre, slug o tipo"
+                className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-[#1e2b66] focus:ring-4 focus:ring-[#1e2b66]/10"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={loadForms}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-[#1e2b66]/10"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Actualizar
+            </button>
+          </div>
+        </section>
+
         <ManageDocumentTypesModal 
             isOpen={showManageTypesModal} 
             onClose={() => setShowManageTypesModal(false)} 
         />
 
-        {/* Error Message */}
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 m-4 rounded-lg flex items-start space-x-2">
-            <svg className="w-5 h-5 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414-1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-            </svg>
+          <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-6 bg-gradient-to-r from-gray-50 to-blue-50 border-b">
-          <div className="bg-white p-4 rounded-lg border-2 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center">
-              <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md">
-                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9 2a1 1 0 011-1h12a1 1 0 110 2H9z" />
-                  <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
-                </svg>
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          {filteredForms.length === 0 && (
+            <div className="px-6 py-16 text-center">
+              <div className="mx-auto grid h-14 w-14 place-items-center rounded-lg bg-[#1e2b66]/10 text-[#1e2b66]">
+                <FileText className="h-7 w-7" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm text-gray-600 font-medium">Total Formularios</p>
-                <p className="text-3xl font-bold text-gray-900">{forms.length}</p>
-              </div>
+              <h3 className="mt-4 text-lg font-semibold text-slate-950">
+                {forms.length === 0 ? 'No hay documentos creados' : 'No encontramos documentos'}
+              </h3>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
+                {forms.length === 0
+                  ? 'Crea el primer documento dinámico para iniciar la captura de datos del Banco de Sangre.'
+                  : 'Ajusta la búsqueda o actualiza la lista para revisar los documentos disponibles.'}
+              </p>
+              {canManage && forms.length === 0 && (
+                <button
+                  type="button"
+                  onClick={openCreateModal}
+                  className="mx-auto mt-6 inline-flex items-center gap-2 rounded-lg bg-[#1e2b66] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#172252]"
+                >
+                  <Plus className="h-4 w-4" />
+                  Crear documento
+                </button>
+              )}
             </div>
-          </div>
+          )}
 
-          <div className="bg-white p-4 rounded-lg border-2 border-green-200 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center">
-              <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-md">
-                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414-1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm text-gray-600 font-medium">Activos</p>
-                <p className="text-3xl font-bold text-gray-900">{forms.length}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-lg border-2 border-purple-200 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center">
-              <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-md">
-                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm text-gray-600 font-medium">Total Columnas</p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {forms.reduce((sum, form) => sum + form.columns_config.length, 0)}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Empty State */}
-        {forms.length === 0 && !loading && (
-          <div className="text-center py-16 px-6">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-blue-100 mb-4">
-              <svg className="w-10 h-10 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No hay formularios creados</h3>
-            <p className="text-gray-600 mb-6 max-w-md mx-auto">
-              Comienza creando tu primer formulario dinámico para capturar datos del Banco de Sangre
-            </p>
-            {(hasRole('admin') || hasRole('super_admin')) && (
-              <button
-                onClick={openCreateModal}
-                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-lg transition-all duration-200 flex items-center space-x-2 mx-auto shadow-lg hover:shadow-xl transform hover:scale-105"
-              >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                </svg>
-                <span className="font-semibold">Crear Primer Formulario</span>
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Table */}
-        {forms.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gradient-to-r from-gray-100 to-gray-200 border-b-2 border-gray-300">
+          {filteredForms.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px]">
+                <thead className="border-b border-slate-200 bg-slate-50">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Formulario
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                    Documento
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Slug
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                    Tipo
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Columnas
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                    Campos
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                    Recordatorio
+                  </th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                     Creado
                   </th>
-                  <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                     Acciones
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {forms.slice((page - 1) * pageSize, page * pageSize).map((form) => (
-                  <tr key={form.id} className="hover:bg-blue-50 transition-colors duration-150">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {paginatedForms.map((form) => (
+                  <tr key={form.id} className="transition-colors hover:bg-slate-50/80">
+                    <td className="px-5 py-4">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#1e2b66] text-sm font-semibold text-white shadow-sm">
                           {getFormInitials(form.name)}
                         </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-semibold text-gray-900">{form.name}</div>
-                          <div className="text-xs text-gray-500 font-mono">ID: {form.id}</div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-950">{form.name}</p>
+                          <p className="mt-1 truncate font-mono text-xs text-slate-500">{form.slug}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="font-mono text-sm text-gray-700 bg-gray-100 px-3 py-1 rounded border border-gray-300">
-                        {form.slug}
+                    <td className="px-5 py-4">
+                      <span className="inline-flex max-w-[180px] items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+                        <span className="truncate">{form.type?.name || 'Sin tipo'}</span>
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200">
-                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-                        </svg>
+                    <td className="px-5 py-4">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#1e2b66]/10 px-2.5 py-1 text-xs font-semibold text-[#1e2b66]">
+                        <Columns3 className="h-3.5 w-3.5" />
                         {form.columns_config.length} campos
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {new Date(form.created_at).toLocaleDateString('es-CO', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric'
-                      })}
+                    <td className="px-5 py-4">
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        form.is_notification_enabled ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-500'
+                      }`}>
+                        <Bell className="h-3.5 w-3.5" />
+                        {form.is_notification_enabled ? form.notification_time || 'Activo' : 'Inactivo'}
+                      </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-2">
+                    <td className="px-5 py-4 text-sm text-slate-600">
+                      <div className="flex items-center gap-2">
+                        <CalendarDays className="h-4 w-4 text-slate-400" />
+                        {new Date(form.created_at).toLocaleDateString('es-CO', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </div>
+                    </td>
+                    <td className="px-5 py-4 text-right text-sm font-medium">
+                      <div className="flex items-center justify-end gap-1.5">
                         <button
+                          type="button"
                           onClick={() => navigate(`/dashboard-admin/documents/${form.id}`)}
-                          className="text-purple-600 hover:text-purple-900 p-2 rounded-lg hover:bg-purple-50 transition-all duration-150 transform hover:scale-110"
+                          className="rounded-lg p-2 text-slate-500 transition hover:bg-[#1e2b66]/10 hover:text-[#1e2b66] focus:outline-none focus:ring-4 focus:ring-[#1e2b66]/10"
                           title="Ver registros"
+                          aria-label={`Ver registros de ${form.name}`}
                         >
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                            <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                          </svg>
+                          <Eye className="h-5 w-5" />
                         </button>
                         
-                        {(hasRole('admin') || hasRole('super_admin')) && (
+                        {canManage && (
                           <button 
+                            type="button"
                             onClick={() => openPermissionsModal(form)}
-                            className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50 transition-all duration-150 transform hover:scale-110"
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-[#1e2b66]/10 hover:text-[#1e2b66] focus:outline-none focus:ring-4 focus:ring-[#1e2b66]/10"
                             title="Gestionar Permisos"
+                            aria-label={`Gestionar permisos de ${form.name}`}
                           >
-                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                             </svg>
+                            <ShieldCheck className="h-5 w-5" />
                           </button>
                         )}
 
-                        {(hasRole('admin') || hasRole('super_admin')) && (
+                        {canManage && (
                           <button
+                            type="button"
                             onClick={() => openDeleteModal(form)}
-                            className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50 transition-all duration-150 transform hover:scale-110"
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-4 focus:ring-red-100"
                             title="Eliminar formulario"
+                            aria-label={`Eliminar ${form.name}`}
                           >
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
+                            <Trash2 className="h-5 w-5" />
                           </button>
                         )}
                       </div>
@@ -352,18 +426,20 @@ const FormsTable: React.FC = () => {
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          )}
+        </section>
+
+        {filteredForms.length > pageSize && (
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={filteredForms.length}
+            onPageChange={(p) => setPage(p)}
+            onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
+          />
         )}
       </div>
-      {forms.length > pageSize && (
-        <Pagination
-          page={page}
-          pageSize={pageSize}
-          total={forms.length}
-          onPageChange={(p) => setPage(p)}
-          onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
-        />
-      )}
 
       {/* Modales */}
       <CreateFormModal

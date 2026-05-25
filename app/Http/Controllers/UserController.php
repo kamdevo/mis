@@ -12,6 +12,11 @@ use Illuminate\Support\Facades\Auth; // 🔽 IMPORTAR AUTH FOR LOGGING
 
 class UserController extends Controller
 {
+    private function roleValue(User $user): string
+    {
+        return $user->rol instanceof UserRole ? $user->rol->value : (string) $user->rol;
+    }
+
     public function index(): JsonResponse
     {
         $users = User::all();
@@ -26,23 +31,31 @@ class UserController extends Controller
             'password' => 'required|string|min:6',
             'telefono' => 'nullable|string|max:20',
             'rol' => 'required|in:' . implode(',', UserRole::values()),
-            'document_permissions' => 'sometimes|array' // 🔽 AGREGAR ESTO
+            'document_permissions' => 'sometimes|array',
+            'document_permissions.*.document_id' => 'required_with:document_permissions|exists:dynamic_forms,id',
+            'document_permissions.*.can_view' => 'sometimes|boolean',
+            'document_permissions.*.can_edit' => 'sometimes|boolean',
+            'document_permissions.*.can_delete' => 'sometimes|boolean',
+            'document_permissions.*.can_review' => 'sometimes|boolean',
         ]);
 
         // 🔽 AGREGAR HASH DE CONTRASEÑA
         $validated['password'] = Hash::make($validated['password']);
+        $permissions = $validated['document_permissions'] ?? [];
+        unset($validated['document_permissions']);
 
         $user = User::create($validated);
 
         // 🔽 AGREGAR MANEJO DE PERMISOS DE DOCUMENTOS
-        if ($request->has('document_permissions') && is_array($request->document_permissions)) {
-            foreach ($request->document_permissions as $permission) {
+        if (!empty($permissions)) {
+            foreach ($permissions as $permission) {
                 \App\Models\UserDocumentPermission::create([
                     'user_id' => $user->id,
                     'document_id' => $permission['document_id'],
                     'can_view' => $permission['can_view'] ?? false,
                     'can_edit' => $permission['can_edit'] ?? false,
                     'can_delete' => $permission['can_delete'] ?? false,
+                    'can_review' => $permission['can_review'] ?? false,
                 ]);
             }
         }
@@ -51,7 +64,7 @@ class UserController extends Controller
         ActivityLog::create([
             'user_id' => Auth::id() ?? $user->id, // Fallback to created user if no auth (e.g. seeder/first user)
             'action' => 'user_created',
-            'description' => "Usuario creado: {$user->nombre} ({$user->rol})",
+            'description' => "Usuario creado: {$user->nombre} ({$this->roleValue($user)})",
             'subject_type' => User::class,
             'subject_id' => $user->id,
             'ip_address' => $request->ip(),
@@ -63,7 +76,7 @@ class UserController extends Controller
             'nombre' => $user->nombre,
             'correo' => $user->correo,
             'telefono' => $user->telefono,
-            'rol' => $user->rol,
+            'rol' => $this->roleValue($user),
             'created_at' => $user->created_at,
         ], 201);
     }
@@ -78,7 +91,7 @@ class UserController extends Controller
             'nombre' => $user->nombre,
             'correo' => $user->correo,
             'telefono' => $user->telefono,
-            'rol' => $user->rol,
+            'rol' => $this->roleValue($user),
             'document_permissions' => $user->documentPermissions,
             'created_at' => $user->created_at,
         ]);
@@ -92,7 +105,12 @@ class UserController extends Controller
             'password' => 'sometimes|string|min:6',
             'telefono' => 'nullable|string|max:20',
             'rol' => 'sometimes|in:' . implode(',', UserRole::values()),
-            'document_permissions' => 'sometimes|array' // 🔽 AGREGAR ESTO
+            'document_permissions' => 'sometimes|array',
+            'document_permissions.*.document_id' => 'required_with:document_permissions|exists:dynamic_forms,id',
+            'document_permissions.*.can_view' => 'sometimes|boolean',
+            'document_permissions.*.can_edit' => 'sometimes|boolean',
+            'document_permissions.*.can_delete' => 'sometimes|boolean',
+            'document_permissions.*.can_review' => 'sometimes|boolean',
         ]);
 
         // 🔽 AGREGAR HASH DE CONTRASEÑA SOLO SI SE PROPORCIONA
@@ -100,20 +118,24 @@ class UserController extends Controller
             $validated['password'] = Hash::make($validated['password']);
         }
 
+        $permissions = $validated['document_permissions'] ?? null;
+        unset($validated['document_permissions']);
+
         $user->update($validated);
 
         // 🔽 AGREGAR ACTUALIZACIÓN DE PERMISOS DE DOCUMENTOS
-        if ($request->has('document_permissions') && is_array($request->document_permissions)) {
+        if (is_array($permissions)) {
             // Eliminar permisos existentes para re-crearlos (estrategia simple para manejar eliminaciones)
             \App\Models\UserDocumentPermission::where('user_id', $user->id)->delete();
 
-            foreach ($request->document_permissions as $permission) {
+            foreach ($permissions as $permission) {
                 \App\Models\UserDocumentPermission::create([
                     'user_id' => $user->id,
                     'document_id' => $permission['document_id'],
                     'can_view' => $permission['can_view'] ?? false,
                     'can_edit' => $permission['can_edit'] ?? false,
                     'can_delete' => $permission['can_delete'] ?? false,
+                    'can_review' => $permission['can_review'] ?? false,
                 ]);
             }
         }
@@ -134,14 +156,14 @@ class UserController extends Controller
             'nombre' => $user->nombre,
             'correo' => $user->correo,
             'telefono' => $user->telefono,
-            'rol' => $user->rol,
+            'rol' => $this->roleValue($user),
             'updated_at' => $user->updated_at,
         ]);
     }
 
     public function destroy(Request $request, User $user): JsonResponse
     {
-        $userData = "{$user->nombre} ({$user->email})";
+        $userData = "{$user->nombre} ({$user->correo})";
         $userId = $user->id;
 
         $user->delete();

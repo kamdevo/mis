@@ -6,6 +6,7 @@ import { formsService } from '@/lib/formService';
 import DynamicRecordForm from '@/components/forms-module/DynamicRecordForm';
 import type { DynamicForm } from '@/lib/formService';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
 
 const DocumentRecordFormPage = () => {
   const navigate = useNavigate();
@@ -19,7 +20,7 @@ const DocumentRecordFormPage = () => {
     if (formId) {
       loadForm(parseInt(formId, 10));
     } else {
-        setError('ID de formulario no valido');
+      setError('ID de documento no válido');
         setLoading(false);
     }
   }, [formId]);
@@ -52,15 +53,10 @@ const DocumentRecordFormPage = () => {
     return (
       <ProtectedRoute requiredRole="admin">
         <DashboardLayout>
-          <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-            <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
-              <div className="flex flex-col items-center">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mb-4"></div>
-                <p className="text-black font-medium">Cargando formulario...</p>
-                <p className="text-gray-400 text-sm mt-2">
-                  Form ID: {formId || '...'} | Record ID: {recordId || 'nuevo'}
-                </p>
-              </div>
+          <div className="rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
+            <div className="flex h-64 flex-col items-center justify-center gap-3 text-slate-600">
+              <Loader2 className="h-10 w-10 animate-spin text-[#1e2b66]" />
+              <p className="text-sm font-medium">Cargando registro...</p>
             </div>
           </div>
         </DashboardLayout>
@@ -73,25 +69,22 @@ const DocumentRecordFormPage = () => {
     return (
       <ProtectedRoute requiredRole="admin">
         <DashboardLayout>
-          <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
-              <div className="flex flex-col items-center">
-                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                  <svg className="w-8 h-8 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-bold text-black mb-2">Error al cargar</h3>
-                <p className="text-black text-center mb-6">
-                  {error || 'No se pudo encontrar el formulario'}
-                </p>
-                <button
-                  onClick={handleBack}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
-                >
-                  Volver
-                </button>
+          <div className="rounded-lg border border-red-200 bg-white p-8 shadow-sm">
+            <div className="mx-auto flex max-w-md flex-col items-center text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-red-50 text-red-600">
+                <AlertCircle className="h-6 w-6" />
               </div>
+              <h3 className="mt-4 text-lg font-semibold text-slate-950">Error al cargar</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                {error || 'No se pudo encontrar el documento'}
+              </p>
+              <button
+                onClick={handleBack}
+                className="mt-6 inline-flex h-10 items-center gap-2 rounded-lg bg-[#1e2b66] px-4 text-sm font-semibold text-white transition hover:bg-[#172252]"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Volver
+              </button>
             </div>
           </div>
         </DashboardLayout>
@@ -106,29 +99,21 @@ const DocumentRecordFormPage = () => {
   return (
     <ProtectedRoute requiredRole="admin">
       <DashboardLayout>
-        <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto">
-            {/* Breadcrumb */}
-            <nav className="mb-6">
-              <button
-                onClick={handleBack}
-                className="flex items-center text-blue-600 hover:text-blue-800 transition-colors"
-              >
-                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-                </svg>
-                <span className="font-medium text-black">Volver a Registros</span>
-              </button>
-            </nav>
-
-            {/* Componente del formulario */}
-            <DynamicRecordForm 
-              form={form}
-              documentId={form.id}
-              recordId={numericRecordId}
-            />
-          </div>
+        <div className="mb-5">
+          <button
+            onClick={handleBack}
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Volver a registros
+          </button>
         </div>
+
+        <DynamicRecordForm 
+          form={form}
+          documentId={form.id}
+          recordId={numericRecordId}
+        />
       </DashboardLayout>
     </ProtectedRoute>
   );

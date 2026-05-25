@@ -3,6 +3,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -15,9 +16,10 @@ class UserDocumentsController extends Controller
     public function myDocuments(): JsonResponse
     {
         $user = Auth::user();
+        $isAdmin = $user->rol === UserRole::ADMIN || $user->rol === UserRole::SUPER_ADMIN;
         
         // Si es admin, ver todos los documentos
-        if ($user->rol === 'admin') {
+        if ($isAdmin) {
             $documents = \App\Models\DynamicForm::with(['userPermissions' => function($query) use ($user) {
                 $query->where('user_id', $user->id);
             }])->get()->map(function ($document) {
@@ -64,6 +66,7 @@ class UserDocumentsController extends Controller
     public function showDocument($documentId): JsonResponse
     {
         $user = Auth::user();
+        $isAdmin = $user->rol === UserRole::ADMIN || $user->rol === UserRole::SUPER_ADMIN;
         
         if (!$user->canAccessDocument($documentId, 'view')) {
             return response()->json([
@@ -83,9 +86,9 @@ class UserDocumentsController extends Controller
             'data' => [
                 'document' => $document,
                 'permissions' => [
-                    'can_view' => $user->rol === 'admin' ? true : ($permission->can_view ?? false),
-                    'can_edit' => $user->rol === 'admin' ? true : ($permission->can_edit ?? false),
-                    'can_delete' => $user->rol === 'admin' ? true : ($permission->can_delete ?? false),
+                    'can_view' => $isAdmin ? true : ($permission->can_view ?? false),
+                    'can_edit' => $isAdmin ? true : ($permission->can_edit ?? false),
+                    'can_delete' => $isAdmin ? true : ($permission->can_delete ?? false),
                 ]
             ]
         ]);

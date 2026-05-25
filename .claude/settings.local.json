@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(findstr /i \"signature\")",
+      "Bash(findstr /i \"pen\")",
+      "Bash(findstr /i \"eraser\")",
+      "Bash(php -l app/Http/Controllers/DashboardController.php)"
+    ]
+  }
+}

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { AnimatePresence, motion } from 'motion/react';
+import { AlertCircle, Check, FileText, Loader2, Save, Search, ShieldCheck, Trash2, UserRound, Users, X } from 'lucide-react';
 import { useToast } from '@/providers/ToastContext';
-import { X, Search, Save, User, UserPlus, Trash2 } from 'lucide-react';
 
 interface UserPermission {
   user_id: number;
@@ -21,7 +22,6 @@ interface UserBasic {
   rol: string;
 }
 
-// ... imports
 interface ManageDocumentPermissionsModalProps {
   show: boolean;
   onClose: () => void;
@@ -29,247 +29,409 @@ interface ManageDocumentPermissionsModalProps {
   formName: string;
 }
 
+type PermissionField = 'can_view' | 'can_edit' | 'can_delete' | 'can_review';
+
+const permissionColumns: Array<{ key: PermissionField; label: string; tone: 'blue' | 'red' }> = [
+  { key: 'can_view', label: 'Ver', tone: 'blue' },
+  { key: 'can_edit', label: 'Editar', tone: 'blue' },
+  { key: 'can_delete', label: 'Eliminar', tone: 'red' },
+  { key: 'can_review', label: 'Revisor', tone: 'blue' },
+];
+
+const roleLabels: Record<string, string> = {
+  admin: 'Administrador',
+  'super-admin': 'Super admin',
+  editor: 'Editor',
+  user: 'Usuario',
+};
+
+const normalizeBoolean = (value: unknown): boolean => value === true || value === 1 || value === '1' || value === 'true';
+
+const hasAnyPermission = (permission: UserPermission): boolean => (
+  permission.can_view || permission.can_edit || permission.can_delete || permission.can_review
+);
+
+const getRoleLabel = (role: string): string => roleLabels[role] ?? role;
+
+const PermissionCheckbox: React.FC<{
+  label: string;
+  checked: boolean;
+  disabled?: boolean;
+  tone?: 'blue' | 'red';
+  onChange: (checked: boolean) => void;
+}> = ({ label, checked, disabled = false, tone = 'blue', onChange }) => {
+  const activeClass = tone === 'red' ? 'border-red-600 bg-red-600 text-white' : 'border-[#1e2b66] bg-[#1e2b66] text-white';
+
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition-all focus:outline-none focus:ring-2 focus:ring-[#1e2b66]/30 disabled:cursor-not-allowed disabled:opacity-60 ${
+        checked ? activeClass : 'border-slate-300 bg-white text-transparent hover:border-[#1e2b66] hover:bg-slate-50'
+      }`}
+      title={label}
+    >
+      <Check className="h-4 w-4" />
+    </button>
+  );
+};
+
 const ManageDocumentPermissionsModal: React.FC<ManageDocumentPermissionsModalProps> = ({
   show,
   onClose,
   formId,
-  formName
+  formName,
 }) => {
   const [permissions, setPermissions] = useState<UserPermission[]>([]);
-  const [allUsers, setAllUsers] = useState<UserBasic[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loadError, setLoadError] = useState('');
   const { success, error } = useToast();
 
   useEffect(() => {
-    if (show && formId) {
-      loadData();
-    }
+    if (!show) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !saving) onClose();
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [show, saving, onClose]);
+
+  useEffect(() => {
+    if (show && formId) loadData();
   }, [show, formId]);
 
   const loadData = async () => {
-    // ... existing logic ...
     setLoading(true);
+    setLoadError('');
+
     try {
       const [permissionsRes, usersRes] = await Promise.all([
         axios.get(`/api/forms/${formId}/permissions`),
-        axios.get('/api/users')
+        axios.get('/api/users'),
       ]);
-      setPermissions(permissionsRes.data.data);
-      setAllUsers(usersRes.data);
+
+      const assignedPermissions: UserPermission[] = Array.isArray(permissionsRes.data?.data) ? permissionsRes.data.data : [];
+      const users: UserBasic[] = Array.isArray(usersRes.data) ? usersRes.data : [];
+      const permissionsByUser = new Map(assignedPermissions.map((permission) => [permission.user_id, permission]));
+
+      setPermissions(users.map((user) => {
+        const assigned = permissionsByUser.get(user.id);
+
+        return {
+          user_id: user.id,
+          user_name: user.nombre,
+          user_email: user.correo,
+          user_role: user.rol,
+          can_view: normalizeBoolean(assigned?.can_view),
+          can_edit: normalizeBoolean(assigned?.can_edit),
+          can_delete: normalizeBoolean(assigned?.can_delete),
+          can_review: normalizeBoolean(assigned?.can_review),
+        };
+      }));
     } catch (err) {
-      error('Error', { description: 'No se pudieron cargar los datos de permisos.' });
-      console.error(err);
+      setLoadError('No se pudieron cargar los permisos.');
+      error('Error', { description: 'No se pudieron cargar los permisos.' });
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePermissionChange = (userId: number, field: keyof UserPermission, value: boolean) => {
-    setPermissions(prev => prev.map(p => {
-      if (p.user_id === userId) {
-        return { ...p, [field]: value };
+  const filteredPermissions = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return permissions;
+
+    return permissions.filter((permission) => (
+      permission.user_name.toLowerCase().includes(term)
+      || permission.user_email.toLowerCase().includes(term)
+      || getRoleLabel(permission.user_role).toLowerCase().includes(term)
+    ));
+  }, [permissions, searchTerm]);
+
+  const stats = useMemo(() => ({
+    users: permissions.length,
+    assigned: permissions.filter(hasAnyPermission).length,
+    reviewers: permissions.filter((permission) => permission.can_review).length,
+  }), [permissions]);
+
+  const handlePermissionChange = (userId: number, field: PermissionField, value: boolean) => {
+    setPermissions((currentPermissions) => currentPermissions.map((permission) => {
+      if (permission.user_id !== userId) return permission;
+
+      const nextPermission = { ...permission, [field]: value };
+
+      if (field === 'can_view' && !value) {
+        nextPermission.can_edit = false;
+        nextPermission.can_delete = false;
+        nextPermission.can_review = false;
       }
-      return p;
+
+      if (field === 'can_edit') {
+        if (value) nextPermission.can_view = true;
+        if (!value) nextPermission.can_delete = false;
+      }
+
+      if (field === 'can_delete' && value) {
+        nextPermission.can_view = true;
+        nextPermission.can_edit = true;
+      }
+
+      if (field === 'can_review' && value) {
+        nextPermission.can_view = true;
+      }
+
+      return nextPermission;
     }));
   };
 
-  const handleAddUser = (user: UserBasic) => {
-    if (permissions.find(p => p.user_id === user.id)) return;
-
-    const newPermission: UserPermission = {
-      user_id: user.id,
-      user_name: user.nombre,
-      user_email: user.correo,
-      user_role: user.rol,
-      can_view: true,
-      can_edit: false,
-      can_delete: false,
-      can_review: false
-    };
-
-    setPermissions([...permissions, newPermission]);
-  };
-
-  const handleRemoveUser = (userId: number) => {
-    setPermissions(prev => prev.filter(p => p.user_id !== userId));
+  const handleClearUser = (userId: number) => {
+    setPermissions((currentPermissions) => currentPermissions.map((permission) => (
+      permission.user_id === userId
+        ? { ...permission, can_view: false, can_edit: false, can_delete: false, can_review: false }
+        : permission
+    )));
   };
 
   const handleSave = async () => {
     setSaving(true);
+
     try {
-      const promises = permissions.map(p => {
-        return axios.post(`/api/users/${p.user_id}/document-permissions`, {
-          permissions: [{
-            document_id: formId,
-            can_view: p.can_view,
-            can_edit: p.can_edit,
-            can_delete: p.can_delete,
-            can_review: p.can_review
-          }]
-        });
-      });
-      await Promise.all(promises);
+      const payload = permissions.map((permission) => ({
+        user_id: permission.user_id,
+        can_view: permission.can_view,
+        can_edit: permission.can_edit,
+        can_delete: permission.can_delete,
+        can_review: permission.can_review,
+      }));
+
+      const response = await axios.post(`/api/forms/${formId}/permissions`, { permissions: payload });
+      const updatedPermissions: UserPermission[] = Array.isArray(response.data?.data) ? response.data.data : [];
+      const updatedByUser = new Map(updatedPermissions.map((permission) => [permission.user_id, permission]));
+
+      setPermissions((currentPermissions) => currentPermissions.map((permission) => {
+        const updated = updatedByUser.get(permission.user_id);
+
+        return {
+          ...permission,
+          can_view: normalizeBoolean(updated?.can_view),
+          can_edit: normalizeBoolean(updated?.can_edit),
+          can_delete: normalizeBoolean(updated?.can_delete),
+          can_review: normalizeBoolean(updated?.can_review),
+        };
+      }));
+
       success('Guardado', { description: 'Permisos actualizados correctamente.' });
       onClose();
     } catch (err) {
-      error('Error', { description: 'Error al asegurar cambios.' });
+      const message = axios.isAxiosError(err) ? err.response?.data?.message : null;
+      error('Error', { description: message || 'No se pudieron guardar los permisos.' });
     } finally {
       setSaving(false);
     }
   };
-  
-    const handleDeleteImmediate = async (userId: number) => {
-        if(!confirm('¿Estás seguro de quitar los permisos a este usuario?')) return;
-        
-        try {
-            await axios.delete(`/api/users/${userId}/document-permissions/${formId}`);
-            handleRemoveUser(userId);
-            success('Eliminado', { description: 'Usuario removido del documento.' });
-        } catch(err) {
-            error('Error', { description: 'No se pudo remover el usuario.' });
-        }
-    };
-
-  if (!show) return null;
-
-  const availableUsers = allUsers.filter(u => 
-    !permissions.some(p => p.user_id === u.id) && 
-    (u.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || u.correo.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
 
   return (
-    <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center z-[150] p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl border border-gray-200 flex flex-col max-h-[90vh]">
-        
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 px-6 py-4 rounded-t-xl flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <User className="w-5 h-5 text-blue-200" />
-              Gestión de Permisos
-            </h2>
-            <p className="text-blue-100 text-sm mt-1">
-              Documento: <span className="font-semibold">{formName}</span>
-            </p>
-          </div>
-          <button onClick={onClose} className="text-blue-100 hover:text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
-          
-          {/* Left: Add Users */}
-          <div className="w-full md:w-1/3 border-r border-gray-200 p-4 flex flex-col bg-gray-50">
-            <h3 className="text-gray-800 font-semibold mb-3 flex items-center gap-2">
-                <UserPlus className="w-4 h-4 text-blue-600" /> Agregar Usuario
-            </h3>
-            <div className="relative mb-4">
-              <input
-                type="text"
-                placeholder="Buscar usuario..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-white border border-gray-300 rounded-lg pl-9 pr-4 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-            </div>
-            
-            <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-              {availableUsers.map(user => (
-                <div key={user.id} className="p-3 bg-white border border-gray-200 rounded-lg hover:border-blue-400 hover:shadow-sm cursor-pointer transition-all"
-                     onClick={() => handleAddUser(user)}>
-                  <p className="text-gray-800 font-medium text-sm">{user.nombre}</p>
-                  <p className="text-gray-500 text-xs">{user.rol}</p>
-                </div>
-              ))}
-              {availableUsers.length === 0 && (
-                <p className="text-gray-500 text-sm text-center py-4">No se encontraron usuarios disponibles.</p>
-              )}
-            </div>
-          </div>
-
-          {/* Right: Permissions List */}
-          <div className="w-full md:w-2/3 p-4 flex flex-col bg-white">
-            <h3 className="text-gray-800 font-semibold mb-3">Usuarios con Acceso</h3>
-            
-            <div className="bg-white rounded-lg border border-gray-200 flex-1 overflow-hidden flex flex-col shadow-sm">
-              {/* Header Row */}
-              <div className="grid grid-cols-12 gap-2 p-3 border-b border-gray-200 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                <div className="col-span-4">Usuario</div>
-                <div className="col-span-2 text-center">Ver</div>
-                <div className="col-span-2 text-center">Editar</div>
-                <div className="col-span-2 text-center">Eliminar</div>
-                <div className="col-span-2 text-center text-amber-600">Revisor</div>
-              </div>
-
-              {/* Rows */}
-              <div className="overflow-y-auto flex-1 custom-scrollbar">
-                {loading ? (
-                    <div className="p-8 text-center text-gray-500">Cargando...</div>
-                ) : permissions.length === 0 ? (
-                    <div className="p-8 text-center text-gray-500">No hay usuarios asignados a este documento.</div>
-                ) : (
-                    permissions.map(p => (
-                        <div key={p.user_id} className="grid grid-cols-12 gap-2 p-3 border-b border-gray-100 items-center hover:bg-blue-50 transition-colors group">
-                            <div className="col-span-4 overflow-hidden">
-                                <p className="text-gray-900 text-sm font-medium truncate">{p.user_name}</p>
-                                <p className="text-gray-500 text-xs truncate">{p.user_email}</p>
-                            </div>
-                            
-                            <div className="col-span-2 flex justify-center">
-                                <input type="checkbox" checked={p.can_view} onChange={(e) => handlePermissionChange(p.user_id, 'can_view', e.target.checked)} 
-                                       className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
-                            </div>
-                            <div className="col-span-2 flex justify-center">
-                                <input type="checkbox" checked={p.can_edit} onChange={(e) => handlePermissionChange(p.user_id, 'can_edit', e.target.checked)}
-                                       className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
-                            </div>
-                            <div className="col-span-2 flex justify-center">
-                                <input type="checkbox" checked={p.can_delete} onChange={(e) => handlePermissionChange(p.user_id, 'can_delete', e.target.checked)}
-                                       className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
-                            </div>
-                            <div className="col-span-2 flex justify-center relative">
-                                <input type="checkbox" checked={p.can_review} onChange={(e) => handlePermissionChange(p.user_id, 'can_review', e.target.checked)}
-                                       className="w-4 h-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500 cursor-pointer" />
-                                       
-                                <button onClick={() => handleDeleteImmediate(p.user_id)} className="absolute right-0 top-1/2 -translate-y-1/2 text-red-500 opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 rounded-md transition-all" title="Quitar acceso">
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </div>
-                    ))
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50 rounded-b-xl">
-          <button onClick={onClose} className="px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors font-medium" disabled={saving}>
-            Cancelar
-          </button>
-          <button 
-            onClick={handleSave} 
-            disabled={saving}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !saving) onClose();
+          }}
+        >
+          <motion.div
+            className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl"
+            initial={{ y: 24, scale: 0.98, opacity: 0 }}
+            animate={{ y: 0, scale: 1, opacity: 1 }}
+            exit={{ y: 18, scale: 0.98, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 24 }}
           >
-            {saving ? 'Guardando...' : (
-              <>
-                <Save className="w-4 h-4" />
-                Guardar Cambios
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
+            <div className="border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#1e2b66] text-white shadow-sm">
+                    <ShieldCheck className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#1e2b66]">Permisos</p>
+                    <h2 className="mt-1 truncate text-xl font-semibold text-slate-950">Gestión de permisos</h2>
+                    <div className="mt-2 flex min-w-0 items-center gap-2 text-sm text-slate-600">
+                      <FileText className="h-4 w-4 shrink-0 text-slate-400" />
+                      <span className="truncate">{formName}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={saving}
+                  className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-xs font-medium text-slate-500">Usuarios</p>
+                  <p className="mt-1 text-2xl font-semibold text-slate-950">{stats.users}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-xs font-medium text-slate-500">Con acceso</p>
+                  <p className="mt-1 text-2xl font-semibold text-[#1e2b66]">{stats.assigned}</p>
+                </div>
+                <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3">
+                  <p className="text-xs font-medium text-red-700">Revisores</p>
+                  <p className="mt-1 text-2xl font-semibold text-red-700">{stats.reviewers}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex min-h-0 flex-1 flex-col bg-slate-50/70">
+              <div className="border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
+                <div className="relative max-w-xl">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="search"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    placeholder="Buscar por nombre, correo o rol"
+                    className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#1e2b66] focus:ring-4 focus:ring-[#1e2b66]/10"
+                    disabled={loading || saving}
+                  />
+                </div>
+              </div>
+
+              {loadError && (
+                <div className="mx-5 mt-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:mx-6">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{loadError}</span>
+                </div>
+              )}
+
+              <div className="min-h-0 flex-1 overflow-auto px-5 py-4 sm:px-6">
+                <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+                  <div className="overflow-x-auto">
+                    <div className="min-w-[780px]">
+                      <div className="grid grid-cols-[minmax(260px,1.5fr)_repeat(4,96px)_64px] items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        <div>Usuario</div>
+                        {permissionColumns.map((column) => (
+                          <div key={column.key} className="text-center">{column.label}</div>
+                        ))}
+                        <div className="text-center">Limpiar</div>
+                      </div>
+
+                      <div className="max-h-[42vh] overflow-y-auto">
+                        {loading ? (
+                          <div className="flex h-56 items-center justify-center gap-3 text-sm font-medium text-slate-600">
+                            <Loader2 className="h-5 w-5 animate-spin text-[#1e2b66]" />
+                            Cargando permisos...
+                          </div>
+                        ) : filteredPermissions.length === 0 ? (
+                          <div className="flex h-56 flex-col items-center justify-center gap-3 text-center text-slate-500">
+                            <Users className="h-8 w-8 text-slate-300" />
+                            <p className="text-sm font-medium">No hay usuarios para mostrar.</p>
+                          </div>
+                        ) : (
+                          filteredPermissions.map((permission) => {
+                            const assigned = hasAnyPermission(permission);
+
+                            return (
+                              <div
+                                key={permission.user_id}
+                                className={`grid grid-cols-[minmax(260px,1.5fr)_repeat(4,96px)_64px] items-center gap-3 border-b border-slate-100 px-4 py-3 transition last:border-b-0 ${
+                                  assigned ? 'bg-white' : 'bg-white hover:bg-slate-50'
+                                }`}
+                              >
+                                <div className="flex min-w-0 items-center gap-3">
+                                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${assigned ? 'bg-[#1e2b66] text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                    <UserRound className="h-4 w-4" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-semibold text-slate-950">{permission.user_name}</p>
+                                    <p className="truncate text-xs text-slate-500">{permission.user_email}</p>
+                                    <p className="mt-1 text-xs font-medium text-slate-400">{getRoleLabel(permission.user_role)}</p>
+                                  </div>
+                                </div>
+
+                                {permissionColumns.map((column) => (
+                                  <div key={column.key} className="flex justify-center">
+                                    <PermissionCheckbox
+                                      label={`${column.label} ${permission.user_name}`}
+                                      checked={permission[column.key]}
+                                      tone={column.tone}
+                                      disabled={saving}
+                                      onChange={(checked) => handlePermissionChange(permission.user_id, column.key, checked)}
+                                    />
+                                  </div>
+                                ))}
+
+                                <div className="flex justify-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleClearUser(permission.user_id)}
+                                    disabled={saving || !assigned}
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+                                    title="Limpiar permisos"
+                                    aria-label={`Limpiar permisos de ${permission.user_name}`}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-slate-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={saving}
+                className="inline-flex h-11 items-center justify-center rounded-lg border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving || loading}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#1e2b66] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#172252] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                {saving ? 'Guardando...' : 'Guardar cambios'}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
-
 
 export default ManageDocumentPermissionsModal;
