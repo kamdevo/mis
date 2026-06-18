@@ -7,6 +7,8 @@ use Illuminate\Console\Command;
 use App\Models\DynamicForm;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use App\Mail\DocumentReminderMail;
 use Carbon\Carbon;
 
@@ -36,6 +38,11 @@ class SendDocumentReminders extends Command
         $now = Carbon::now('America/Bogota');
         $currentTime = $this->option('time') ?: $now->format('H:i');
 
+        // Rango del "día de hoy" en hora Colombia, expresado en UTC para comparar
+        // contra created_at (que se guarda en UTC).
+        $todayStart = Carbon::now('America/Bogota')->startOfDay()->utc();
+        $todayEnd = Carbon::now('America/Bogota')->endOfDay()->utc();
+
         $this->info("Checking for reminders at {$currentTime}...");
 
         // Find documents with notification enabled
@@ -59,14 +66,33 @@ class SendDocumentReminders extends Command
                 return $perm->user;
             })->unique('id');
 
+            // ¿Existe la tabla física del formulario? (si no, no hay registros que revisar)
+            $hasTable = $doc->table_name && Schema::hasTable($doc->table_name);
+
             foreach ($users as $user) {
-                if ($user && $user->correo) {
-                    try {
-                        Mail::to($user->correo)->send(new DocumentReminderMail($user, $doc));
-                        $this->info("Email sent to: {$user->correo}");
-                    } catch (\Exception $e) {
-                        $this->error("Failed to send email to {$user->correo}: " . $e->getMessage());
+                if (!$user || !$user->correo) {
+                    continue;
+                }
+
+                // Solo se recuerda a quienes AÚN NO han llenado el formulario hoy.
+                // Si ya hicieron su registro del día, no se les molesta.
+                if ($hasTable) {
+                    $yaRegistroHoy = DB::table($doc->table_name)
+                        ->where('created_by', $user->id)
+                        ->whereBetween('created_at', [$todayStart, $todayEnd])
+                        ->exists();
+
+                    if ($yaRegistroHoy) {
+                        $this->info("Skipped (ya registró hoy): {$user->correo}");
+                        continue;
                     }
+                }
+
+                try {
+                    Mail::to($user->correo)->send(new DocumentReminderMail($user, $doc));
+                    $this->info("Email sent to: {$user->correo}");
+                } catch (\Exception $e) {
+                    $this->error("Failed to send email to {$user->correo}: " . $e->getMessage());
                 }
             }
         }
