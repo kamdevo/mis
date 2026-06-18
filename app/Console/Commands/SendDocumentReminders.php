@@ -31,7 +31,9 @@ class SendDocumentReminders extends Command
      */
     public function handle()
     {
-        $now = Carbon::now();
+        // La hora seleccionada por el usuario es hora local de Colombia (UTC-5),
+        // pero la app corre en UTC, así que comparamos en la zona de Bogotá.
+        $now = Carbon::now('America/Bogota');
         $currentTime = $this->option('time') ?: $now->format('H:i');
 
         $this->info("Checking for reminders at {$currentTime}...");

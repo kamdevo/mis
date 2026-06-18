@@ -1,0 +1,7 @@
+CREDENCIALES SUPER ADMIN (ROL SECRETO)
+manual@test.com
+12345678
+
+CREDENCIALES  Admin
+admin@banco.sangre
+hola1234
